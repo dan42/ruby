@@ -255,7 +255,7 @@ struct parser_params {
     int max_numparam;
 
     unsigned int command_start:1;
-    unsigned int chk_omitted_arg:1;
+    unsigned int block_start:1;
     unsigned int eofp: 1;
     unsigned int ruby__end__seen: 1;
     unsigned int debug: 1;
@@ -8546,14 +8546,6 @@ parse_atmark(struct parser_params *p, const enum lex_state_e last_state)
     return result;
 }
 
-static int
-dot_ahead(struct parser_params *p)
-{
-    int spaces = 0;
-    while (ISSPACE(peekc_n(p,spaces))) spaces++;
-    return peek_n(p, '.', spaces) ? TRUE : FALSE;
-}
-
 static enum yytokentype
 parse_ident(struct parser_params *p, int c, int cmd_state)
 {
@@ -8608,11 +8600,11 @@ parse_ident(struct parser_params *p, int c, int cmd_state)
 	    if (kw->id[0] == keyword_do) {
 		if (lambda_beginning_p()) {
 		    p->lex.lpar_beg = -1; /* make lambda_beginning_p() == FALSE in the body of "-> do ... end" */
-                    p->chk_omitted_arg = dot_ahead(p);
+                    p->block_start = TRUE;
 		    return keyword_do_LAMBDA;
 		}
 		if (COND_P()) return keyword_do_cond;
-                p->chk_omitted_arg = dot_ahead(p);
+                p->block_start = TRUE;
 		if (CMDARG_P() && !IS_lex_state_for(state, EXPR_CMDARG))
 		    return keyword_do_block;
 		return keyword_do;
@@ -8658,6 +8650,7 @@ parser_yylex(struct parser_params *p)
     register int c;
     int space_seen = 0;
     int cmd_state;
+    int block_start;
     int label;
     enum lex_state_e last_state;
     int fallthru = FALSE;
@@ -8674,6 +8667,8 @@ parser_yylex(struct parser_params *p)
     }
     cmd_state = p->command_start;
     p->command_start = FALSE;
+    block_start = p->block_start;
+    p->block_start = FALSE;
     p->token_seen = TRUE;
   retry:
     last_state = p->lex.state;
@@ -8685,6 +8680,7 @@ parser_yylex(struct parser_params *p)
       case '\004':		/* ^D */
       case '\032':		/* ^Z */
       case -1:			/* end of script. */
+        if (block_start) p->block_start = TRUE;
 	return 0;
 
 	/* white spaces */
@@ -9086,8 +9082,6 @@ parser_yylex(struct parser_params *p)
 
       case '.': {
         int is_beg = IS_BEG();
-        int chk_omitted_arg = p->chk_omitted_arg;
-        p->chk_omitted_arg = FALSE;
 	SET_LEX_STATE(EXPR_BEG);
 	switch (c = nextc(p)) {
 	  case '.':
@@ -9128,7 +9122,7 @@ parser_yylex(struct parser_params *p)
 	    p->lex.ptok = p->lex.pcur;
 	    goto retry;
 	}
-	if (is_beg && chk_omitted_arg) {
+	if (is_beg && block_start) {
 	    if (parser_numbered_param(p, 0)) {
 		pushback(p, '.');
 		return tNUMPARAM;
@@ -9300,7 +9294,7 @@ parser_yylex(struct parser_params *p)
 	    COND_PUSH(0);
 	    CMDARG_PUSH(0);
 	    p->lex.paren_nest++;
-            p->chk_omitted_arg = dot_ahead(p);
+            p->block_start = TRUE;
 	    return tLAMBEG;
 	}
 	p->lex.paren_nest++;
@@ -9308,11 +9302,11 @@ parser_yylex(struct parser_params *p)
 	    c = tLBRACE;      /* hash */
 	else if (IS_lex_state(EXPR_ARG_ANY | EXPR_END | EXPR_ENDFN)) {
 	    c = '{';          /* block (primary) */
-            p->chk_omitted_arg = dot_ahead(p);
+            p->block_start = TRUE;
         }
 	else if (IS_lex_state(EXPR_ENDARG)) {
 	    c = tLBRACE_ARG;  /* block (expr) */
-            p->chk_omitted_arg = dot_ahead(p);
+            p->block_start = TRUE;
         }
 	else
 	    c = tLBRACE;      /* hash */
