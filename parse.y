@@ -8716,7 +8716,6 @@ parser_yylex(struct parser_params *p)
       case '\004':		/* ^D */
       case '\032':		/* ^Z */
       case -1:			/* end of script. */
-        if (block_start) p->block_start = TRUE;
 	return 0;
 
 	/* white spaces */
