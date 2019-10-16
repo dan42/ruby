@@ -1471,6 +1471,18 @@ eom
     end
   end
 
+  def test_omitted_parameter
+    assert_valid_syntax('proc{ .to_s }')
+    assert_valid_syntax("proc{\n .to_s \n}")
+    assert_valid_syntax("proc do\n .to_s \nend")
+    assert_equal("22", eval('proc{ .to_s 3 }.call(8)'))
+    assert_equal(3, eval('proc{ .+1 }.call(2)'))
+    assert_equal(Range, eval('proc{ ..to_s }.call.class'))
+    assert_equal([["0"], ["0", "1"]], eval('(1..2).map{ .times.map{ .to_s } }'))
+    assert_syntax_error('proc{ .to_s; .to_i }', /unexpected/)
+    assert_syntax_error('proc{ .to_s(.to_i) }', /unexpected/)
+  end
+
   def test_value_expr_in_condition
     mesg = /void value expression/
     assert_syntax_error("tap {a = (true ? next : break)}", mesg)
