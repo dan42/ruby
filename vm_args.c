@@ -27,9 +27,9 @@ struct args_info {
     /* additional args info */
     int rest_index;
     int rest_dupped;
+    VALUE rest;
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
-    VALUE rest;
 };
 
 enum arg_setup_type {
@@ -185,6 +185,19 @@ args_rest_array(struct args_info *args)
 	ary = rb_ary_new();
     }
     return ary;
+}
+
+static inline void
+args_rest_init(struct args_info *args, unsigned int flags)
+{
+    args->rest_index = 0;
+    args->rest_dupped = FALSE;
+    args->rest = Qfalse;
+
+    if (flags & VM_CALL_ARGS_SPLAT) {
+        VM_ASSERT((flags & VM_CALL_KWARG) == 0);
+        args->rest = args->argv[--args->argc];
+    }
 }
 
 #define KW_HASH_HAS_NO_KEYS 0
@@ -759,8 +772,8 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     args = &args_body;
     args->argc = calling->argc;
     args->argv = locals;
-    args->rest_dupped = FALSE;
-    args->rest = Qfalse;
+
+    args_rest_init(args, ci->flag);
 
     if (kw_flag & VM_CALL_KWARG) {
 	args->kw_arg = ((struct rb_call_info_with_kwarg *)ci)->kw_arg;
@@ -790,8 +803,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     if (ci->flag & VM_CALL_ARGS_SPLAT) {
         VALUE rest_last = 0;
         int len;
-	args->rest = locals[--args->argc];
-	args->rest_index = 0;
         len = RARRAY_LENINT(args->rest);
         rest_last = RARRAY_AREF(args->rest, len - 1);
 
@@ -851,7 +862,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 flag_keyword_hash = args->argv[args->argc-1];
             }
         }
-	args->rest = Qfalse;
     }
 
     if (flag_keyword_hash && RB_TYPE_P(flag_keyword_hash, T_HASH)) {
