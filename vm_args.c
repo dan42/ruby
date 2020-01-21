@@ -47,7 +47,7 @@ arg_rest_dup(struct args_info *args)
 }
 
 static inline int
-args_argc(struct args_info *args)
+nb(struct args_info *args)
 {
     if (args->rest == Qfalse) {
 	return args->argc;
@@ -726,7 +726,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     const int min_argc = iseq->body->param.lead_num + iseq->body->param.post_num;
     const int max_argc = (iseq->body->param.flags.has_rest == FALSE) ? min_argc + iseq->body->param.opt_num : UNLIMITED_ARGUMENTS;
     int opt_pc = 0;
-    int given_argc;
     int kw_splat = FALSE;
     unsigned int kw_flag = ci->flag & (VM_CALL_KWARG | VM_CALL_KW_SPLAT);
     struct args_info args_body, *args;
@@ -758,9 +757,10 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 
     /* setup args */
     args = &args_body;
-    given_argc = args->argc = calling->argc;
+    args->argc = calling->argc;
     args->argv = locals;
     args->rest_dupped = FALSE;
+    args->rest = Qfalse;
 
     if (kw_flag & VM_CALL_KWARG) {
 	args->kw_arg = ((struct rb_call_info_with_kwarg *)ci)->kw_arg;
@@ -770,12 +770,11 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	    /* copy kw_argv */
 	    args->kw_argv = ALLOCA_N(VALUE, kw_len);
 	    args->argc -= kw_len;
-	    given_argc -= kw_len;
 	    MEMCPY(args->kw_argv, locals + args->argc, VALUE, kw_len);
 	}
 	else {
 	    args->kw_argv = NULL;
-	    given_argc = args_kw_argv_to_hash(args);
+            args_kw_argv_to_hash(args);
 	    kw_flag |= VM_CALL_KW_SPLAT;
 	}
     }
@@ -794,7 +793,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	args->rest = locals[--args->argc];
 	args->rest_index = 0;
         len = RARRAY_LENINT(args->rest);
-        given_argc += len - 1;
         rest_last = RARRAY_AREF(args->rest, len - 1);
 
         if (!kw_flag && len > 0) {
@@ -813,11 +811,10 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 
         if (kw_flag & VM_CALL_KW_SPLAT) {
             if (len > 0 && ignore_keyword_hash_p(rest_last, iseq)) {
-                if (given_argc != min_argc) {
+                if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
                         arg_rest_dup(args);
                         rb_ary_pop(args->rest);
-                        given_argc--;
                         kw_flag &= ~VM_CALL_KW_SPLAT;
                     }
                     else {
@@ -837,10 +834,9 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         if (kw_flag & VM_CALL_KW_SPLAT) {
             VALUE last_arg = args->argv[args->argc-1];
             if (ignore_keyword_hash_p(last_arg, iseq)) {
-                if (given_argc != min_argc) {
+                if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
                         args->argc--;
-                        given_argc--;
                         kw_flag &= ~VM_CALL_KW_SPLAT;
                     }
                     else {
@@ -870,30 +866,27 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
       case arg_setup_method:
 	break; /* do nothing special */
       case arg_setup_block:
-	if (given_argc == 1 &&
+	if (nb(args) == 1 &&
 	    (min_argc > 0 || iseq->body->param.opt_num > 1 ||
 	     iseq->body->param.flags.has_kw || iseq->body->param.flags.has_kwrest) &&
 	    !iseq->body->param.flags.ambiguous_param0 &&
 	    args_check_block_arg0(args)) {
-	    given_argc = RARRAY_LENINT(args->rest);
 	}
 	break;
     }
 
     /* argc check */
-    if (given_argc < min_argc) {
-	if (given_argc == min_argc - 1 && args->kw_argv) {
+    if (nb(args) < min_argc) {
+	if (nb(args) == min_argc - 1 && args->kw_argv) {
 	    args_stored_kw_argv_to_hash(args);
-	    given_argc = args_argc(args);
 	}
 	else {
 	    if (arg_setup_type == arg_setup_block) {
 		CHECK_VM_STACK_OVERFLOW(ec->cfp, min_argc);
-		given_argc = min_argc;
 		args_extend(args, min_argc);
 	    }
 	    else {
-		argument_arity_error(ec, iseq, given_argc, min_argc, max_argc);
+		argument_arity_error(ec, iseq, nb(args), min_argc, max_argc);
 	    }
 	}
     }
@@ -902,16 +895,15 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	kw_splat = !iseq->body->param.flags.has_rest;
     }
     if ((iseq->body->param.flags.has_kw || iseq->body->param.flags.has_kwrest ||
-	 (kw_splat && given_argc > max_argc)) &&
+	 (kw_splat && nb(args) > max_argc)) &&
 	args->kw_argv == NULL) {
-        if (given_argc > min_argc) {
+        if (nb(args) > min_argc) {
             if (kw_flag) {
                 int check_only_symbol = (kw_flag & VM_CALL_KW_SPLAT) &&
                                         iseq->body->param.flags.has_kw &&
                                         !iseq->body->param.flags.has_kwrest;
 
                 if (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
-                    given_argc--;
                 }
                 else if (check_only_symbol) {
                     if (keyword_hash != Qnil) {
@@ -928,25 +920,23 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                  * foo({k:42}) #=> 42
                  */
                 rb_warn_last_hash_to_keyword(ec, calling, ci, iseq);
-                given_argc--;
             }
             else if (keyword_hash != Qnil) {
                 rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
             }
         }
-        else if (given_argc == min_argc && kw_flag) {
+        else if (nb(args) == min_argc && kw_flag) {
             rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
         }
     }
 
-    if (given_argc > max_argc && max_argc != UNLIMITED_ARGUMENTS) {
+    if (nb(args) > max_argc && max_argc != UNLIMITED_ARGUMENTS) {
 	if (arg_setup_type == arg_setup_block) {
 	    /* truncate */
-	    args_reduce(args, given_argc - max_argc);
-	    given_argc = max_argc;
+	    args_reduce(args, nb(args) - max_argc);
 	}
 	else {
-	    argument_arity_error(ec, iseq, given_argc, min_argc, max_argc);
+	    argument_arity_error(ec, iseq, nb(args), min_argc, max_argc);
 	}
     }
 
@@ -990,7 +980,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	    args_setup_kw_parameters(ec, iseq, arg.vals, kw_len, arg.keys, klocals);
 	}
 	else {
-	    VM_ASSERT(args_argc(args) == 0);
+	    VM_ASSERT(nb(args) == 0);
 	    args_setup_kw_parameters(ec, iseq, NULL, 0, NULL, klocals);
 	}
     }
