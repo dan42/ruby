@@ -28,6 +28,8 @@ struct args_info {
     int rest_index;
     int rest_dupped;
     VALUE rest;
+
+    /* keyword args info */
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
 };
@@ -359,6 +361,27 @@ args_stored_kw_argv_to_hash(struct args_info *args)
     }
     else {
 	args->argv[args->argc++] = h;
+    }
+}
+
+static inline void
+args_kw_init(struct args_info *args, unsigned int kw_flag)
+{
+    if (kw_flag & VM_CALL_KWARG) {
+        if (kw_flag == VM_CALL_KWARG) {
+            /* copy kw_argv */
+            int kw_len = args->kw_arg->keyword_len;
+            args->argc -= kw_len;
+            MEMCPY(args->kw_argv, args->argv + args->argc, VALUE, kw_len);
+        }
+        else {
+            args->kw_argv = NULL;
+            args_kw_argv_to_hash(args);
+        }
+    }
+    else {
+        args->kw_arg = NULL;
+        args->kw_argv = NULL;
     }
 }
 
@@ -777,24 +800,16 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 
     if (kw_flag & VM_CALL_KWARG) {
 	args->kw_arg = ((struct rb_call_info_with_kwarg *)ci)->kw_arg;
-
 	if (iseq->body->param.flags.has_kw) {
+            /* allocate stack buffer */
 	    int kw_len = args->kw_arg->keyword_len;
-	    /* copy kw_argv */
 	    args->kw_argv = ALLOCA_N(VALUE, kw_len);
-	    args->argc -= kw_len;
-	    MEMCPY(args->kw_argv, locals + args->argc, VALUE, kw_len);
 	}
 	else {
-	    args->kw_argv = NULL;
-            args_kw_argv_to_hash(args);
 	    kw_flag |= VM_CALL_KW_SPLAT;
 	}
     }
-    else {
-	args->kw_arg = NULL;
-	args->kw_argv = NULL;
-    }
+    args_kw_init(args, kw_flag);
 
     if (kw_flag && iseq->body->param.flags.ruby2_keywords) {
         remove_empty_keyword_hash = 0;
