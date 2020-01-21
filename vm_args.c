@@ -59,6 +59,19 @@ nb(struct args_info *args)
     }
 }
 
+static inline VALUE
+args_last_get(struct args_info *args)
+{
+    int len = args->rest ? RARRAY_LENINT(args->rest) : 0;
+    if (len == 0) {
+        if (args->argc) {
+            return args->argv[args->argc - 1];
+        }
+        return Qundef;
+    }
+    return RARRAY_AREF(args->rest, len - 1);
+}
+
 static inline void
 args_extend(struct args_info *args, const int min_argc)
 {
@@ -283,7 +296,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
     if (args->rest == Qfalse) {
       from_argv:
 	VM_ASSERT(args->argc > 0);
-	*kw_hash_ptr = args->argv[args->argc-1];
+        *kw_hash_ptr = args_last_get(args);
 
 	if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
 	    if (rest_hash) {
@@ -299,7 +312,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 	long len = RARRAY_LEN(args->rest);
 
 	if (len > 0) {
-	    *kw_hash_ptr = RARRAY_AREF(args->rest, len - 1);
+            *kw_hash_ptr = args_last_get(args);
 
 	    if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
 		if (rest_hash) {
@@ -819,7 +832,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         VALUE rest_last = 0;
         int len;
         len = RARRAY_LENINT(args->rest);
-        rest_last = RARRAY_AREF(args->rest, len - 1);
+        rest_last = args_last_get(args);
 
         if (!kw_flag && len > 0) {
             if (RB_TYPE_P(rest_last, T_HASH) &&
@@ -858,7 +871,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
     else {
         if (kw_flag & VM_CALL_KW_SPLAT) {
-            VALUE last_arg = args->argv[args->argc-1];
+            VALUE last_arg = args_last_get(args);
             if (ignore_keyword_hash_p(last_arg, iseq)) {
                 if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
@@ -874,7 +887,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 }
 	    }
             else if (!remove_empty_keyword_hash) {
-                flag_keyword_hash = args->argv[args->argc-1];
+                flag_keyword_hash = args_last_get(args);
             }
         }
     }
