@@ -49,6 +49,12 @@ arg_rest_dup(struct args_info *args)
 }
 
 static inline int
+rest_len(struct args_info *args)
+{
+    return (args->rest == Qfalse) ? 0 : RARRAY_LENINT(args->rest);
+}
+
+static inline int
 nb(struct args_info *args)
 {
     if (args->rest == Qfalse) {
@@ -62,7 +68,7 @@ nb(struct args_info *args)
 static inline VALUE
 args_last_get(struct args_info *args)
 {
-    int len = args->rest ? RARRAY_LENINT(args->rest) : 0;
+    int len = rest_len(args);
     if (len == 0) {
         if (args->argc) {
             return args->argv[args->argc - 1];
@@ -80,7 +86,7 @@ args_extend(struct args_info *args, const int min_argc)
     if (args->rest) {
         arg_rest_dup(args);
 	VM_ASSERT(args->rest_index == 0);
-	for (i=args->argc + RARRAY_LENINT(args->rest); i<min_argc; i++) {
+        for (i=args->argc + rest_len(args); i<min_argc; i++) {
 	    rb_ary_push(args->rest, Qnil);
 	}
     }
@@ -95,7 +101,7 @@ static inline void
 args_reduce(struct args_info *args, int over_argc)
 {
     if (args->rest) {
-	const long len = RARRAY_LEN(args->rest);
+        const long len = rest_len(args);
 
 	if (len > over_argc) {
 	    arg_rest_dup(args);
@@ -117,7 +123,7 @@ args_check_block_arg0(struct args_info *args)
 {
     VALUE ary = Qnil;
 
-    if (args->rest && RARRAY_LEN(args->rest) == 1) {
+    if (rest_len(args) == 1) {
 	VALUE arg0 = RARRAY_AREF(args->rest, 0);
 	ary = rb_check_array_type(arg0);
     }
@@ -309,7 +315,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 	}
     }
     else {
-	long len = RARRAY_LEN(args->rest);
+        long len = rest_len(args);
 
 	if (len > 0) {
             *kw_hash_ptr = args_last_get(args);
@@ -422,7 +428,7 @@ static inline void
 args_setup_post_parameters(struct args_info *args, int argc, VALUE *locals)
 {
     long len;
-    len = RARRAY_LEN(args->rest);
+    len = rest_len(args);
     MEMCPY(locals, RARRAY_CONST_PTR_TRANSIENT(args->rest) + len - argc, VALUE, argc);
     rb_ary_resize(args->rest, len - argc);
 }
@@ -443,7 +449,7 @@ args_setup_opt_parameters(struct args_info *args, int opt_max, VALUE *locals)
 	args->argc = 0;
 
 	if (args->rest) {
-            int len = RARRAY_LENINT(args->rest);
+            int len = rest_len(args);
             const VALUE *argv = RARRAY_CONST_PTR_TRANSIENT(args->rest);
 
             for (; i<opt_max && args->rest_index < len; i++, args->rest_index++) {
@@ -831,7 +837,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     if (ci->flag & VM_CALL_ARGS_SPLAT) {
         VALUE rest_last = 0;
         int len;
-        len = RARRAY_LENINT(args->rest);
+        len = rest_len(args);
         rest_last = args_last_get(args);
 
         if (!kw_flag && len > 0) {
