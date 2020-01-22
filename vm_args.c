@@ -292,13 +292,6 @@ keyword_hash_split_iter(st_data_t key, st_data_t val, st_data_t arg)
     return ST_CONTINUE;
 }
 
-static void
-keyword_hash_split(VALUE *kw_hash_ptr, VALUE *rest_hash_ptr)
-{
-    *kw_hash_ptr = rb_hash_new();
-    rb_hash_stlike_foreach(*rest_hash_ptr, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
-}
-
 static VALUE
 args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
 {
@@ -326,8 +319,10 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
                 *kw_hash_ptr = Qnil;
                 return FALSE;
               case KW_HASH_HAS_BOTH_KEYS:
+                /* split the hash */
                 *rest_hash_ptr = rb_hash_dup(*rest_hash_ptr);
-                keyword_hash_split(kw_hash_ptr, rest_hash_ptr);
+                *kw_hash_ptr = rb_hash_new();
+                rb_hash_stlike_foreach(*rest_hash_ptr, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
                 break;
             }
         }
