@@ -312,8 +312,8 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
               case KW_HASH_HAS_NO_KEYS:
               case KW_HASH_HAS_SYMBOL_KEY:
                 *kw_hash_ptr = rest_hash;
-                rest_hash = Qfalse;
-                break;
+                args_last_pop(args);
+                return TRUE;
               case KW_HASH_HAS_OTHER_KEY:
                 *kw_hash_ptr = Qnil;
                 return FALSE;
@@ -322,19 +322,15 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
                 rest_hash = rb_hash_dup(rest_hash);
                 *kw_hash_ptr = rb_hash_new();
                 rb_hash_stlike_foreach(rest_hash, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
-                break;
+                args_set_last_hash(args, rest_hash);
+                return FALSE;
+              default:
+                VM_UNREACHABLE(args_pop_keyword_hash);
+                return FALSE;
             }
         }
         else {
             *kw_hash_ptr = rest_hash;
-            rest_hash = Qfalse;
-        }
-
-        if (rest_hash) {
-            args_set_last_hash(args, rest_hash);
-            return FALSE;
-        }
-        else {
             args_last_pop(args);
             return TRUE;
         }
