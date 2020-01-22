@@ -290,40 +290,11 @@ keyword_hash_split(VALUE *kw_hash_ptr, VALUE *rest_hash_ptr)
     rb_hash_stlike_foreach(*rest_hash_ptr, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
 }
 
-static int
-keyword_hash_p(VALUE *kw_hash_ptr, VALUE *rest_hash_ptr, int check_only_symbol)
-{
-    *rest_hash_ptr = rb_check_hash_type(*kw_hash_ptr);
-
-    if (!NIL_P(*rest_hash_ptr)) {
-	if (check_only_symbol) {
-	    switch (keyword_hash_symbol_other(*rest_hash_ptr)) {
-              case KW_HASH_HAS_NO_KEYS:
-              case KW_HASH_HAS_SYMBOL_KEY:
-		break;
-              case KW_HASH_HAS_OTHER_KEY:
-		*kw_hash_ptr = Qnil;
-		return FALSE;
-              case KW_HASH_HAS_BOTH_KEYS:
-                *rest_hash_ptr = rb_hash_dup(*rest_hash_ptr);
-		keyword_hash_split(kw_hash_ptr, rest_hash_ptr);
-		return TRUE;
-	    }
-	}
-	*kw_hash_ptr = *rest_hash_ptr;
-	*rest_hash_ptr = Qfalse;
-	return TRUE;
-    }
-    else {
-	*kw_hash_ptr = Qnil;
-	return FALSE;
-    }
-}
-
 static VALUE
 args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
 {
     VALUE rest_hash;
+    VALUE *rest_hash_ptr = &rest_hash;
     long len = rest_len(args);
 
     if (len == 0) {
@@ -332,17 +303,43 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
     *kw_hash_ptr = args->last_hash;
 
-    if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
+    *rest_hash_ptr = rb_check_hash_type(*kw_hash_ptr);
+
+    if (!NIL_P(*rest_hash_ptr)) {
+        if (check_only_symbol) {
+            switch (keyword_hash_symbol_other(*rest_hash_ptr)) {
+              case KW_HASH_HAS_NO_KEYS:
+              case KW_HASH_HAS_SYMBOL_KEY:
+                *kw_hash_ptr = *rest_hash_ptr;
+                *rest_hash_ptr = Qfalse;
+                break;
+              case KW_HASH_HAS_OTHER_KEY:
+                *kw_hash_ptr = Qnil;
+                return FALSE;
+              case KW_HASH_HAS_BOTH_KEYS:
+                *rest_hash_ptr = rb_hash_dup(*rest_hash_ptr);
+                keyword_hash_split(kw_hash_ptr, rest_hash_ptr);
+                break;
+            }
+        }
+        else {
+            *kw_hash_ptr = *rest_hash_ptr;
+            *rest_hash_ptr = Qfalse;
+        }
+
         if (rest_hash) {
             args_set_last_hash(args, rest_hash);
+            return FALSE;
         }
         else {
             args_last_pop(args);
             return TRUE;
         }
     }
-
-    return FALSE;
+    else {
+        *kw_hash_ptr = Qnil;
+        return FALSE;
+    }
 }
 
 static int
