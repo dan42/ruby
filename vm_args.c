@@ -79,6 +79,20 @@ args_last_get(struct args_info *args)
 }
 
 static inline void
+args_set_last_hash(struct args_info *args, VALUE h)
+{
+    int len = rest_len(args);
+    if (len == 0) {
+        VM_ASSERT(args->argc > 0);
+        args->argv[args->argc - 1] = h;
+    }
+    else {
+        arg_rest_dup(args);
+        RARRAY_ASET(args->rest, len - 1, h);
+    }
+}
+
+static inline void
 args_extend(struct args_info *args, const int min_argc)
 {
     int i;
@@ -306,7 +320,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
 	if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
 	    if (rest_hash) {
-		args->argv[args->argc-1] = rest_hash;
+                args_set_last_hash(args, rest_hash);
 	    }
 	    else {
 		args->argc--;
@@ -319,7 +333,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
         if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
             if (rest_hash) {
-                RARRAY_ASET(args->rest, len - 1, rest_hash);
+                args_set_last_hash(args, rest_hash);
             }
             else {
                 arg_rest_dup(args);
@@ -348,7 +362,7 @@ args_kw_argv_to_hash(struct args_info *args)
 	rb_hash_aset(h, passed_keywords[i], kw_argv[i]);
     }
 
-    args->argv[args->argc - 1] = h;
+    args_set_last_hash(args, h);
 
     return args->argc;
 }
@@ -837,6 +851,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             if (RB_TYPE_P(rest_last, T_HASH) &&
                 (((struct RHash *)rest_last)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
                 rest_last = rb_hash_dup(rest_last);
+                args_set_last_hash(args, rest_last);
                 kw_flag |= VM_CALL_KW_SPLAT;
                 if (iseq->body->param.flags.ruby2_keywords) {
                     remove_empty_keyword_hash = 0;
