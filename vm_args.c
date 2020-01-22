@@ -287,7 +287,6 @@ static VALUE
 args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
 {
     VALUE rest_hash;
-    VALUE *rest_hash_ptr = &rest_hash;
     long len = rest_len(args);
 
     if (len == 0) {
@@ -296,30 +295,30 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
     *kw_hash_ptr = args->last_hash;
 
-    *rest_hash_ptr = rb_check_hash_type(*kw_hash_ptr);
+    rest_hash = rb_check_hash_type(*kw_hash_ptr);
 
-    if (!NIL_P(*rest_hash_ptr)) {
+    if (!NIL_P(rest_hash)) {
         if (check_only_symbol) {
-            switch (keyword_hash_symbol_other(*rest_hash_ptr)) {
+            switch (keyword_hash_symbol_other(rest_hash)) {
               case KW_HASH_HAS_NO_KEYS:
               case KW_HASH_HAS_SYMBOL_KEY:
-                *kw_hash_ptr = *rest_hash_ptr;
-                *rest_hash_ptr = Qfalse;
+                *kw_hash_ptr = rest_hash;
+                rest_hash = Qfalse;
                 break;
               case KW_HASH_HAS_OTHER_KEY:
                 *kw_hash_ptr = Qnil;
                 return FALSE;
               case KW_HASH_HAS_BOTH_KEYS:
                 /* split the hash */
-                *rest_hash_ptr = rb_hash_dup(*rest_hash_ptr);
+                rest_hash = rb_hash_dup(rest_hash);
                 *kw_hash_ptr = rb_hash_new();
-                rb_hash_stlike_foreach(*rest_hash_ptr, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
+                rb_hash_stlike_foreach(rest_hash, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
                 break;
             }
         }
         else {
-            *kw_hash_ptr = *rest_hash_ptr;
-            *rest_hash_ptr = Qfalse;
+            *kw_hash_ptr = rest_hash;
+            rest_hash = Qfalse;
         }
 
         if (rest_hash) {
