@@ -298,9 +298,9 @@ static VALUE
 args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
 {
     VALUE rest_hash;
+    long len = rest_len(args);
 
-    if (args->rest == Qfalse) {
-      from_argv:
+    if (len == 0) {
 	VM_ASSERT(args->argc > 0);
         *kw_hash_ptr = args_last_get(args);
 
@@ -315,25 +315,18 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 	}
     }
     else {
-        long len = rest_len(args);
+        *kw_hash_ptr = args_last_get(args);
 
-	if (len > 0) {
-            *kw_hash_ptr = args_last_get(args);
-
-	    if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
-		if (rest_hash) {
-		    RARRAY_ASET(args->rest, len - 1, rest_hash);
-		}
-		else {
-		    arg_rest_dup(args);
-		    rb_ary_pop(args->rest);
-		    return TRUE;
-		}
-	    }
-	}
-	else {
-	    goto from_argv;
-	}
+        if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
+            if (rest_hash) {
+                RARRAY_ASET(args->rest, len - 1, rest_hash);
+            }
+            else {
+                arg_rest_dup(args);
+                rb_ary_pop(args->rest);
+                return TRUE;
+            }
+        }
     }
 
     return FALSE;
