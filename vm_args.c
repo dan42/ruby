@@ -290,16 +290,12 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
     VM_ASSERT(rest_len(args) == 0 ? args->argc > 0 : 1);
 
-    *kw_hash_ptr = args->last_hash;
-
-    rest_hash = rb_check_hash_type(*kw_hash_ptr);
-
-    if (!NIL_P(rest_hash)) {
+    if (args->last_hash) {
         if (check_only_symbol) {
-            switch (keyword_hash_symbol_other(rest_hash)) {
+            switch (keyword_hash_symbol_other(args->last_hash)) {
               case KW_HASH_HAS_NO_KEYS:
               case KW_HASH_HAS_SYMBOL_KEY:
-                *kw_hash_ptr = rest_hash;
+                *kw_hash_ptr = args->last_hash;
                 args_last_pop(args);
                 return TRUE;
               case KW_HASH_HAS_OTHER_KEY:
@@ -307,7 +303,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
                 return FALSE;
               case KW_HASH_HAS_BOTH_KEYS:
                 /* split the hash */
-                rest_hash = rb_hash_dup(rest_hash);
+                rest_hash = rb_hash_dup(args->last_hash);
                 *kw_hash_ptr = rb_hash_new();
                 rb_hash_stlike_foreach(rest_hash, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
                 args_set_last_hash(args, rest_hash);
@@ -318,7 +314,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
             }
         }
         else {
-            *kw_hash_ptr = rest_hash;
+            *kw_hash_ptr = args->last_hash;
             args_last_pop(args);
             return TRUE;
         }
