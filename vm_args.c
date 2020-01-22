@@ -325,64 +325,39 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
     }
 }
 
-static int
+static void
 args_kw_argv_to_hash(struct args_info *args)
 {
     const struct rb_call_info_kw_arg *kw_arg = args->kw_arg;
     const VALUE *const passed_keywords = kw_arg->keywords;
     const int kw_len = kw_arg->keyword_len;
     VALUE h = rb_hash_new_with_size(kw_len);
-    const int kw_start = args->argc - kw_len;
-    const VALUE * const kw_argv = args->argv + kw_start;
     int i;
+    VM_ASSERT(args->rest == Qfalse);
 
-    args->argc = kw_start + 1;
     for (i=0; i<kw_len; i++) {
-	rb_hash_aset(h, passed_keywords[i], kw_argv[i]);
-    }
-
-    args_set_last_hash(args, h);
-
-    return args->argc;
-}
-
-static void
-args_stored_kw_argv_to_hash(struct args_info *args)
-{
-    int i;
-    const struct rb_call_info_kw_arg *kw_arg = args->kw_arg;
-    const VALUE *const passed_keywords = kw_arg->keywords;
-    const int passed_keyword_len = kw_arg->keyword_len;
-    VALUE h = rb_hash_new_with_size(passed_keyword_len);
-
-    for (i=0; i<passed_keyword_len; i++) {
-	rb_hash_aset(h, passed_keywords[i], args->kw_argv[i]);
+        rb_hash_aset(h, passed_keywords[i], args->kw_argv[i]);
     }
     args->kw_argv = NULL;
 
-    if (args->rest) {
-	arg_rest_dup(args);
-	rb_ary_push(args->rest, h);
-    }
-    else {
-	args->argv[args->argc++] = h;
-    }
-    args->last_hash = h;
+    args->argc++;
+    args_set_last_hash(args, h);
 }
 
 static inline void
 args_kw_init(struct args_info *args, unsigned int kw_flag)
 {
     if (kw_flag & VM_CALL_KWARG) {
+        int kw_len = args->kw_arg->keyword_len;
         if (kw_flag == VM_CALL_KWARG) {
             /* copy kw_argv */
-            int kw_len = args->kw_arg->keyword_len;
             args->argc -= kw_len;
             MEMCPY(args->kw_argv, args->argv + args->argc, VALUE, kw_len);
             args->last_hash = 0;
         }
         else {
-            args->kw_argv = NULL;
+            args->argc -= kw_len;
+            args->kw_argv = args->argv + args->argc;
             args_kw_argv_to_hash(args);
         }
     }
@@ -884,7 +859,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     /* argc check */
     if (nb(args) < min_argc) {
 	if (nb(args) == min_argc - 1 && args->kw_argv) {
-	    args_stored_kw_argv_to_hash(args);
+            args_kw_argv_to_hash(args);
 	}
 	else {
 	    if (arg_setup_type == arg_setup_block) {
