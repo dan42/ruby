@@ -372,18 +372,23 @@ static inline void
 args_setup_lead_parameters(struct args_info *args, int argc, VALUE *locals)
 {
     if (args->argc >= argc) {
-	/* do noting */
+        /* do nothing */
 	args->argc -= argc;
 	args->argv += argc;
     }
     else {
-	int i, j;
+        VM_ASSERT(args->rest);
+        int i;
 	const VALUE *argv = args_rest_argv(args);
 
-	for (i=args->argc, j=0; i<argc; i++, j++) {
-	    locals[i] = argv[j];
+        argc -= args->argc;
+        locals += args->argc;
+        VM_ASSERT(rest_len(args) >= argc);
+
+        for (i=0; i<argc; i++) {
+            locals[i] = argv[i];
 	}
-	args->rest_index += argc - args->argc;
+        args->rest_index += argc;
 	args->argc = 0;
     }
 }
