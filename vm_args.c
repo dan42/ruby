@@ -337,29 +337,17 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
     if (len == 0) {
 	VM_ASSERT(args->argc > 0);
-        *kw_hash_ptr = args_last_to_hash(args);
-
-	if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
-	    if (rest_hash) {
-                args_set_last_hash(args, rest_hash);
-	    }
-	    else {
-	        args_last_pop(args);
-		return TRUE;
-	    }
-	}
     }
-    else {
-        *kw_hash_ptr = args_last_to_hash(args);
 
-        if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
-            if (rest_hash) {
-                args_set_last_hash(args, rest_hash);
-            }
-            else {
-                args_last_pop(args);
-                return TRUE;
-            }
+    *kw_hash_ptr = args_last_to_hash(args);
+
+    if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
+        if (rest_hash) {
+            args_set_last_hash(args, rest_hash);
+        }
+        else {
+            args_last_pop(args);
+            return TRUE;
         }
     }
 
@@ -883,47 +871,25 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 }
             }
         }
+    }
 
-        if (kw_flag & VM_CALL_KW_SPLAT) {
-            if (ignore_keyword_hash_p(rest_last, iseq)) {
-                if (nb(args) != min_argc) {
-                    if (remove_empty_keyword_hash) {
-                        args_last_pop(args);
-                        kw_flag &= ~VM_CALL_KW_SPLAT;
-                    }
-                    else {
-                        flag_keyword_hash = rest_last;
-                    }
+    if (kw_flag & VM_CALL_KW_SPLAT) {
+        if (ignore_keyword_hash_p(args->last_hash, iseq)) {
+            if (nb(args) != min_argc) {
+                if (remove_empty_keyword_hash) {
+                    args_last_pop(args);
+                    kw_flag &= ~VM_CALL_KW_SPLAT;
                 }
                 else {
-                    rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+                    flag_keyword_hash = args->last_hash;
                 }
-	    }
-            else if (!remove_empty_keyword_hash && rest_last) {
-                flag_keyword_hash = rest_last;
+            }
+            else {
+                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
             }
         }
-    }
-    else {
-        if (kw_flag & VM_CALL_KW_SPLAT) {
-            VALUE last_arg = args->last_hash;
-            if (ignore_keyword_hash_p(last_arg, iseq)) {
-                if (nb(args) != min_argc) {
-                    if (remove_empty_keyword_hash) {
-                        args_last_pop(args);
-                        kw_flag &= ~VM_CALL_KW_SPLAT;
-                    }
-                    else {
-                        flag_keyword_hash = last_arg;
-                    }
-                }
-                else {
-                    rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
-                }
-	    }
-            else if (!remove_empty_keyword_hash) {
-                flag_keyword_hash = args->last_hash;
-            }
+        else if (!remove_empty_keyword_hash) {
+            flag_keyword_hash = args->last_hash;
         }
     }
 
