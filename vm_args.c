@@ -62,7 +62,8 @@ nb(struct args_info *args)
 	return args->argc;
     }
     else {
-	return args->argc + RARRAY_LENINT(args->rest) - args->rest_index;
+        VM_ASSERT(args->rest_index == 0);
+        return args->argc + RARRAY_LENINT(args->rest);
     }
 }
 
@@ -207,29 +208,7 @@ args_copy(struct args_info *args)
 	args->argc = 0;
         arg_rest_dup(args);
 
-	/*
-	 * argv: [m0, m1, m2, m3]
-	 * rest: [a0, a1, a2, a3, a4, a5]
-	 *                ^
-	 *                rest_index
-	 *
-	 * #=> first loop
-	 *
-	 * argv: [m0, m1]
-	 * rest: [m2, m3, a2, a3, a4, a5]
-	 *        ^
-	 *        rest_index
-	 *
-	 * #=> 2nd loop
-	 *
-	 * argv: [] (argc == 0)
-	 * rest: [m0, m1, m2, m3, a2, a3, a4, a5]
-	 *        ^
-	 *        rest_index
-	 */
-	while (args->rest_index > 0 && argc > 0) {
-	    RARRAY_ASET(args->rest, --args->rest_index, args->argv[--argc]);
-	}
+	VM_ASSERT(!(args->rest_index > 0 && argc > 0));
 	while (argc > 0) {
 	    rb_ary_unshift(args->rest, args->argv[--argc]);
 	}
@@ -903,13 +882,10 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     remove_empty_keyword_hash = 0;
                 }
             }
-            else {
-                rest_last = 0;
-            }
         }
 
         if (kw_flag & VM_CALL_KW_SPLAT) {
-            if (len > 0 && ignore_keyword_hash_p(rest_last, iseq)) {
+            if (ignore_keyword_hash_p(rest_last, iseq)) {
                 if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
                         args_last_pop(args);
@@ -996,8 +972,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	args->kw_argv == NULL) {
         if (nb(args) > min_argc) {
             if (kw_flag) {
-                int check_only_symbol = (kw_flag & VM_CALL_KW_SPLAT) &&
-                                        iseq->body->param.flags.has_kw &&
+                int check_only_symbol = iseq->body->param.flags.has_kw &&
                                         !iseq->body->param.flags.has_kwrest;
 
                 if (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
@@ -1058,6 +1033,8 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	args_setup_rest_parameter(args, locals + iseq->body->param.rest_start);
     }
 
+    VM_ASSERT(args->rest_index || nb(args) == 0);
+
     if (iseq->body->param.flags.has_kw) {
 	VALUE * const klocals = locals + iseq->body->param.keyword->bits_start - iseq->body->param.keyword->num;
 
@@ -1077,7 +1054,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	    args_setup_kw_parameters(ec, iseq, arg.vals, kw_len, arg.keys, klocals);
 	}
 	else {
-	    VM_ASSERT(nb(args) == 0);
 	    args_setup_kw_parameters(ec, iseq, NULL, 0, NULL, klocals);
 	}
     }
