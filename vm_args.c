@@ -93,6 +93,20 @@ args_set_last_hash(struct args_info *args, VALUE h)
 }
 
 static inline void
+args_last_pop(struct args_info *args)
+{
+    int len = rest_len(args);
+    if (len == 0) {
+        VM_ASSERT(args->argc > 0);
+        args->argc--;
+    }
+    else {
+        arg_rest_dup(args);
+        rb_ary_pop(args->rest);
+    }
+}
+
+static inline void
 args_extend(struct args_info *args, const int min_argc)
 {
     int i;
@@ -323,7 +337,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
                 args_set_last_hash(args, rest_hash);
 	    }
 	    else {
-		args->argc--;
+	        args_last_pop(args);
 		return TRUE;
 	    }
 	}
@@ -336,8 +350,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
                 args_set_last_hash(args, rest_hash);
             }
             else {
-                arg_rest_dup(args);
-                rb_ary_pop(args->rest);
+                args_last_pop(args);
                 return TRUE;
             }
         }
@@ -866,8 +879,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             if (len > 0 && ignore_keyword_hash_p(rest_last, iseq)) {
                 if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
-                        arg_rest_dup(args);
-                        rb_ary_pop(args->rest);
+                        args_last_pop(args);
                         kw_flag &= ~VM_CALL_KW_SPLAT;
                     }
                     else {
@@ -889,7 +901,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             if (ignore_keyword_hash_p(last_arg, iseq)) {
                 if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
-                        args->argc--;
+                        args_last_pop(args);
                         kw_flag &= ~VM_CALL_KW_SPLAT;
                     }
                     else {
