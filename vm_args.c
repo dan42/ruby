@@ -192,8 +192,33 @@ args_check_block_arg0(struct args_info *args)
 }
 
 static inline void
+args_rest_behead(struct args_info *args)
+{
+    if (args->rest_index) {
+        VM_ASSERT(args->argc == 0);
+        if (args->rest_dupped) {
+            rb_ary_behead(args->rest, args->rest_index);
+        }
+        else {
+            int len = rest_len(args);
+            if (args->rest_index == len) {
+                /* instead of dup + clear */
+                args->rest = Qfalse;
+            }
+            else {
+                args->rest = rb_ary_subseq(args->rest, args->rest_index, len);
+                args->rest_dupped = TRUE;
+            }
+        }
+        args->rest_index = 0;
+    }
+}
+
+static inline void
 args_copy(struct args_info *args)
 {
+    args_rest_behead(args);
+
     if (args->rest != Qfalse) {
 	int argc = args->argc;
 	args->argc = 0;
@@ -223,8 +248,11 @@ args_rest_array(struct args_info *args)
 {
     VALUE ary;
 
+    args_rest_behead(args);
+
     if (args->rest) {
-        ary = rb_ary_behead(args->rest, args->rest_index);
+        arg_rest_dup(args);
+        ary = args->rest;
         args->rest_index = 0;
 	args->rest = 0;
     }
