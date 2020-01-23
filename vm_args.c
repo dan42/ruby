@@ -287,11 +287,8 @@ static VALUE
 args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
 {
     VALUE rest_hash;
-    long len = rest_len(args);
 
-    if (len == 0) {
-	VM_ASSERT(args->argc > 0);
-    }
+    VM_ASSERT(rest_len(args) == 0 ? args->argc > 0 : 1);
 
     *kw_hash_ptr = args->last_hash;
 
