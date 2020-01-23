@@ -671,9 +671,7 @@ ignore_keyword_hash_p(VALUE keyword_hash, const rb_iseq_t * const iseq)
 {
     if (!(iseq->body->param.flags.has_kw) &&
 	      !(iseq->body->param.flags.has_kwrest)) {
-	keyword_hash = rb_check_hash_type(keyword_hash);
-
-	if (!NIL_P(keyword_hash) && RHASH_EMPTY_P(keyword_hash)) {
+	if (keyword_hash && RHASH_EMPTY_P(keyword_hash)) {
 	    return 1;
 	}
     }
@@ -883,7 +881,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         rest_last = args->last_hash;
 
         if (!kw_flag && len > 0) {
-            if (RB_TYPE_P(rest_last, T_HASH) &&
+            if (rest_last &&
                 (((struct RHash *)rest_last)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
                 rest_last = rb_hash_dup(rest_last);
                 args_set_last_hash(args, rest_last);
