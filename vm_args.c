@@ -32,6 +32,7 @@ struct args_info {
     /* keyword args info */
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
+    VALUE last_hash;
 };
 
 enum arg_setup_type {
@@ -73,9 +74,22 @@ args_last_get(struct args_info *args)
         if (args->argc) {
             return args->argv[args->argc - 1];
         }
-        return Qundef;
+        return Qfalse;
     }
     return RARRAY_AREF(args->rest, len - 1);
+}
+
+static inline void
+args_init_last_hash(struct args_info *args)
+{
+    VALUE last_arg = args_last_get(args);
+    last_arg = rb_check_hash_type(last_arg);
+    if (NIL_P(last_arg)) {
+        args->last_hash = 0;
+    }
+    else {
+        args->last_hash = last_arg;
+    }
 }
 
 static inline void
@@ -90,6 +104,7 @@ args_set_last_hash(struct args_info *args, VALUE h)
         arg_rest_dup(args);
         RARRAY_ASET(args->rest, len - 1, h);
     }
+    args->last_hash = h;
 }
 
 static inline void
@@ -104,6 +119,7 @@ args_last_pop(struct args_info *args)
         arg_rest_dup(args);
         rb_ary_pop(args->rest);
     }
+    args->last_hash = 0;
 }
 
 static inline void
@@ -144,6 +160,8 @@ args_reduce(struct args_info *args, int over_argc)
 
     VM_ASSERT(args->argc >= over_argc);
     args->argc -= over_argc;
+
+    args->last_hash = 0;
 }
 
 static inline int
@@ -165,6 +183,7 @@ args_check_block_arg0(struct args_info *args)
 	args->rest = ary;
 	args->rest_index = 0;
 	args->argc = 0;
+        args_init_last_hash(args);
 	return TRUE;
     }
 
@@ -330,7 +349,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 
     if (len == 0) {
 	VM_ASSERT(args->argc > 0);
-        *kw_hash_ptr = args_last_get(args);
+        *kw_hash_ptr = args->last_hash;
 
 	if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
 	    if (rest_hash) {
@@ -343,7 +362,7 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
 	}
     }
     else {
-        *kw_hash_ptr = args_last_get(args);
+        *kw_hash_ptr = args->last_hash;
 
         if (keyword_hash_p(kw_hash_ptr, &rest_hash, check_only_symbol)) {
             if (rest_hash) {
@@ -401,6 +420,7 @@ args_stored_kw_argv_to_hash(struct args_info *args)
     else {
 	args->argv[args->argc++] = h;
     }
+    args->last_hash = h;
 }
 
 static inline void
@@ -412,6 +432,7 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
             int kw_len = args->kw_arg->keyword_len;
             args->argc -= kw_len;
             MEMCPY(args->kw_argv, args->argv + args->argc, VALUE, kw_len);
+            args->last_hash = 0;
         }
         else {
             args->kw_argv = NULL;
@@ -421,6 +442,7 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
     else {
         args->kw_arg = NULL;
         args->kw_argv = NULL;
+        args_init_last_hash(args);
     }
 }
 
@@ -858,7 +880,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         VALUE rest_last = 0;
         int len;
         len = rest_len(args);
-        rest_last = args_last_get(args);
+        rest_last = args->last_hash;
 
         if (!kw_flag && len > 0) {
             if (RB_TYPE_P(rest_last, T_HASH) &&
@@ -897,7 +919,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
     else {
         if (kw_flag & VM_CALL_KW_SPLAT) {
-            VALUE last_arg = args_last_get(args);
+            VALUE last_arg = args->last_hash;
             if (ignore_keyword_hash_p(last_arg, iseq)) {
                 if (nb(args) != min_argc) {
                     if (remove_empty_keyword_hash) {
@@ -913,7 +935,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 }
 	    }
             else if (!remove_empty_keyword_hash) {
-                flag_keyword_hash = args_last_get(args);
+                flag_keyword_hash = args->last_hash;
             }
         }
     }
