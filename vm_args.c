@@ -320,7 +320,14 @@ keyword_hash_split_iter(st_data_t key, st_data_t val, st_data_t arg)
     return ST_CONTINUE;
 }
 
-static VALUE
+enum pop_keyword_hash {
+    POP_KW_NOT_HASH = 0,
+    POP_KW_NO_SYMBOL = 1,
+    POP_KW_OK = 2,
+    POP_KW_SPLIT = 3
+};
+
+static enum pop_keyword_hash
 args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
 {
     VALUE rest_hash;
@@ -336,31 +343,31 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
               case KW_HASH_HAS_SYMBOL_KEY:
                 *kw_hash_ptr = args->last_hash;
                 args_last_pop(args);
-                return TRUE;
+                return POP_KW_OK;
               case KW_HASH_HAS_OTHER_KEY:
                 *kw_hash_ptr = Qnil;
-                return FALSE;
+                return POP_KW_NO_SYMBOL;
               case KW_HASH_HAS_BOTH_KEYS:
                 /* split the hash */
                 rest_hash = rb_hash_dup(args->last_hash);
                 *kw_hash_ptr = rb_hash_new();
                 rb_hash_stlike_foreach(rest_hash, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
                 args_set_last_hash(args, rest_hash);
-                return FALSE;
+                return POP_KW_SPLIT;
               default:
                 VM_UNREACHABLE(args_pop_keyword_hash);
-                return FALSE;
+                return -1;
             }
         }
         else {
             *kw_hash_ptr = args->last_hash;
             args_last_pop(args);
-            return TRUE;
+            return POP_KW_OK;
         }
     }
     else {
         *kw_hash_ptr = Qnil;
-        return FALSE;
+        return POP_KW_NOT_HASH;
     }
 }
 
@@ -916,18 +923,19 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             }
             else {
                 /* keywords can be sent as keywords */
+                /* with some exceptions if splatted hash contains non-symbol keys */
                 int check_only_symbol = receiver_kw == RECEIVER_HAS_KWARG;
 
-                if (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
-                }
-                else if (check_only_symbol) {
-                    /* with some exceptions if splatted hash contains non-symbol keys */
-                    if (keyword_hash != Qnil) {
-                        rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
-                    }
-                    else {
-                        rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
-                    }
+                switch (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
+                  case POP_KW_NO_SYMBOL:
+                    rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+                    break;
+                  case POP_KW_SPLIT:
+                    rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
+                    break;
+                  case POP_KW_OK:
+                  case POP_KW_NOT_HASH:
+                    break;
                 }
             }
         }
@@ -937,11 +945,16 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             }
             else {
                 /* optional args allow ambiguity; use hash as positional or keyword? */
-                if (args_pop_keyword_hash(args, &keyword_hash, 1)) {
+                switch (args_pop_keyword_hash(args, &keyword_hash, 1)) {
+                  case POP_KW_OK:
                     rb_warn_last_hash_to_keyword(ec, calling, ci, iseq);
-                }
-                else if (keyword_hash != Qnil) {
+                    break;
+                  case POP_KW_SPLIT:
                     rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
+                    break;
+                  case POP_KW_NO_SYMBOL:
+                  case POP_KW_NOT_HASH:
+                    break;
                 }
             }
         }
