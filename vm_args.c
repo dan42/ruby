@@ -840,6 +840,14 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         }
     }
 
+    if (arg_setup_type == arg_setup_block) {
+        if (nb(args) == 1 &&
+            (min_argc > 0 || iseq->body->param.opt_num > 1 || receiver_kw) &&
+            !iseq->body->param.flags.ambiguous_param0) {
+            args_check_block_arg0(args);
+        }
+    }
+
     if (kw_flag & VM_CALL_KW_SPLAT) {
         if (!receiver_kw && args->last_hash && RHASH_EMPTY_P(args->last_hash)) {
             if (nb(args) != min_argc) {
@@ -866,19 +874,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 
     if (kw_flag && iseq->body->param.flags.accepts_no_kwarg) {
 	rb_raise(rb_eArgError, "no keywords accepted");
-    }
-
-    switch (arg_setup_type) {
-      case arg_setup_method:
-	break; /* do nothing special */
-      case arg_setup_block:
-	if (nb(args) == 1 &&
-	    (min_argc > 0 || iseq->body->param.opt_num > 1 ||
-	     receiver_kw) &&
-	    !iseq->body->param.flags.ambiguous_param0 &&
-	    args_check_block_arg0(args)) {
-	}
-	break;
     }
 
     /* argc check */
