@@ -783,7 +783,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     const int receiver_kw = (iseq->body->param.flags.has_kw ? RECEIVER_HAS_KWARG : 0) |
                             (iseq->body->param.flags.has_kwrest ? RECEIVER_HAS_KWSPLAT : 0);
     int opt_pc = 0;
-    int kw_splat = FALSE;
     unsigned int kw_flag = ci->flag & (VM_CALL_KWARG | VM_CALL_KW_SPLAT);
     struct args_info args_body, *args;
     VALUE keyword_hash = Qnil;
@@ -868,7 +867,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             if (nb(args) != min_argc) {
                 if (remove_empty_keyword_hash) {
                     args_last_pop(args);
-                    kw_flag &= ~VM_CALL_KW_SPLAT;
+                    kw_flag = 0;
                 }
                 else {
                     flag_keyword_hash = args->last_hash;
@@ -895,6 +894,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     if (nb(args) < min_argc) {
 	if (nb(args) == min_argc - 1 && args->kw_argv) {
             args_kw_argv_to_hash(args);
+            kw_flag = VM_CALL_KW_SPLAT;
 	}
 	else {
 	    if (arg_setup_type == arg_setup_block) {
@@ -905,21 +905,23 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 		argument_arity_error(ec, iseq, nb(args), min_argc, max_argc);
 	    }
 	}
+        VM_ASSERT(nb(args) == min_argc);
     }
 
-    if (kw_flag & VM_CALL_KW_SPLAT) {
-	kw_splat = !iseq->body->param.flags.has_rest;
-    }
-    if ((receiver_kw ||
-	 (kw_splat && nb(args) > max_argc)) &&
-	args->kw_argv == NULL) {
-        if (nb(args) > min_argc) {
-            if (kw_flag) {
+    if (receiver_kw) {
+        if (kw_flag & VM_CALL_KW_SPLAT) {
+            if (nb(args) == min_argc) {
+                /* not enough args, must use keywords as positional */
+                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+            }
+            else {
+                /* keywords can be sent as keywords */
                 int check_only_symbol = receiver_kw == RECEIVER_HAS_KWARG;
 
                 if (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
                 }
                 else if (check_only_symbol) {
+                    /* with some exceptions if splatted hash contains non-symbol keys */
                     if (keyword_hash != Qnil) {
                         rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
                     }
@@ -928,19 +930,30 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     }
                 }
             }
-            else if (args_pop_keyword_hash(args, &keyword_hash, 1)) {
-                /* Warn the following:
-                 * def foo(k:1) p [k]; end
-                 * foo({k:42}) #=> 42
-                 */
-                rb_warn_last_hash_to_keyword(ec, calling, ci, iseq);
+        }
+        else if (!kw_flag) {
+            if (nb(args) == min_argc) {
+                /* Hash used as positional argument */
             }
-            else if (keyword_hash != Qnil) {
-                rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
+            else {
+                /* optional args allow ambiguity; use hash as positional or keyword? */
+                if (args_pop_keyword_hash(args, &keyword_hash, 1)) {
+                    rb_warn_last_hash_to_keyword(ec, calling, ci, iseq);
+                }
+                else if (keyword_hash != Qnil) {
+                    rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
+                }
             }
         }
-        else if (nb(args) == min_argc && kw_flag) {
-            rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+        /* else, kwarg always sent as keywords */
+    }
+    else {
+        if (kw_flag & VM_CALL_KW_SPLAT) {
+            if (nb(args) > min_argc) {
+                if (max_argc != UNLIMITED_ARGUMENTS && nb(args) > max_argc) {
+                    args_pop_keyword_hash(args, &keyword_hash, 0);
+                }
+            }
         }
     }
 
