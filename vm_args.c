@@ -782,6 +782,9 @@ rb_warn_last_hash_to_keyword(rb_execution_context_t * const ec, struct rb_callin
     }
 }
 
+#define RECEIVER_HAS_KWARG 1
+#define RECEIVER_HAS_KWSPLAT 2
+
 static int
 setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * const iseq,
 			 struct rb_calling_info *const calling,
@@ -790,6 +793,8 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 {
     const int min_argc = iseq->body->param.lead_num + iseq->body->param.post_num;
     const int max_argc = (iseq->body->param.flags.has_rest == FALSE) ? min_argc + iseq->body->param.opt_num : UNLIMITED_ARGUMENTS;
+    const int receiver_kw = (iseq->body->param.flags.has_kw ? RECEIVER_HAS_KWARG : 0) |
+                            (iseq->body->param.flags.has_kwrest ? RECEIVER_HAS_KWSPLAT : 0);
     int opt_pc = 0;
     int kw_splat = FALSE;
     unsigned int kw_flag = ci->flag & (VM_CALL_KWARG | VM_CALL_KW_SPLAT);
@@ -897,7 +902,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
       case arg_setup_block:
 	if (nb(args) == 1 &&
 	    (min_argc > 0 || iseq->body->param.opt_num > 1 ||
-	     iseq->body->param.flags.has_kw || iseq->body->param.flags.has_kwrest) &&
+	     receiver_kw) &&
 	    !iseq->body->param.flags.ambiguous_param0 &&
 	    args_check_block_arg0(args)) {
 	}
@@ -923,13 +928,12 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     if (kw_flag & VM_CALL_KW_SPLAT) {
 	kw_splat = !iseq->body->param.flags.has_rest;
     }
-    if ((iseq->body->param.flags.has_kw || iseq->body->param.flags.has_kwrest ||
+    if ((receiver_kw ||
 	 (kw_splat && nb(args) > max_argc)) &&
 	args->kw_argv == NULL) {
         if (nb(args) > min_argc) {
             if (kw_flag) {
-                int check_only_symbol = iseq->body->param.flags.has_kw &&
-                                        !iseq->body->param.flags.has_kwrest;
+                int check_only_symbol = receiver_kw == RECEIVER_HAS_KWARG;
 
                 if (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
                 }
