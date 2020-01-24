@@ -621,19 +621,6 @@ fill_keys_values(st_data_t key, st_data_t val, st_data_t ptr)
     return ST_CONTINUE;
 }
 
-static inline int
-ignore_keyword_hash_p(VALUE keyword_hash, const rb_iseq_t * const iseq)
-{
-    if (!(iseq->body->param.flags.has_kw) &&
-	      !(iseq->body->param.flags.has_kwrest)) {
-	if (keyword_hash && RHASH_EMPTY_P(keyword_hash)) {
-	    return 1;
-	}
-    }
-
-    return 0;
-}
-
 VALUE rb_iseq_location(const rb_iseq_t *iseq);
 
 /* -- Remove In 3.0 -- */
@@ -854,7 +841,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
 
     if (kw_flag & VM_CALL_KW_SPLAT) {
-        if (ignore_keyword_hash_p(args->last_hash, iseq)) {
+        if (!receiver_kw && args->last_hash && RHASH_EMPTY_P(args->last_hash)) {
             if (nb(args) != min_argc) {
                 if (remove_empty_keyword_hash) {
                     args_last_pop(args);
