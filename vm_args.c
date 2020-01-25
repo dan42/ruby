@@ -19,6 +19,14 @@ MJIT_FUNC_EXPORTED
 #endif
 const rb_callable_method_entry_t *rb_resolve_refined_method_callable(VALUE refinements, const rb_callable_method_entry_t *me);
 
+enum keyword_type {
+    KWT_KWHASH = -2,
+    KWT_DATAHASH = -1,
+    KWT_NONE = 0,
+    KWT_SPLAT = 1,
+    KWT_KWARG = 2
+};
+
 struct args_info {
     /* basic args info */
     VALUE *argv;
@@ -30,6 +38,7 @@ struct args_info {
     VALUE rest;
 
     /* keyword args info */
+    enum keyword_type kw_type;
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
     VALUE last_hash;
@@ -80,15 +89,23 @@ args_last_get(struct args_info *args)
     return RARRAY_AREF(args->rest, len - 1);
 }
 
+static inline int
+is_kwhash(VALUE hash)
+{
+    return ((struct RHash *)hash)->basic.flags & RHASH_PASS_AS_KEYWORDS;
+}
+
 static inline void
 args_init_last_hash(struct args_info *args)
 {
     VALUE last_arg = args_last_get(args);
     if (RB_TYPE_P(last_arg, T_HASH)) {
         args->last_hash = last_arg;
+        args->kw_type = is_kwhash(args->last_hash) ? KWT_KWHASH : KWT_DATAHASH;
     }
     else {
         args->last_hash = 0;
+        args->kw_type = KWT_NONE;
     }
 }
 
@@ -99,6 +116,7 @@ args_last_to_hash(struct args_info *args)
     VALUE last_arg = rb_check_hash_type(args_last_get(args));
     if (NIL_P(last_arg)) return Qnil;
     args->last_hash = last_arg;
+    args->kw_type = is_kwhash(args->last_hash) ? KWT_KWHASH : KWT_DATAHASH;
     return last_arg;
 }
 
@@ -394,12 +412,15 @@ args_kw_argv_to_hash(struct args_info *args)
 
     args->argc++;
     args_set_last_hash(args, h);
+    args->kw_type = KWT_SPLAT;
 }
 
 static inline void
 args_kw_init(struct args_info *args, unsigned int kw_flag)
 {
     if (kw_flag & VM_CALL_KWARG) {
+        args->kw_type = KWT_KWARG;
+
         int kw_len = args->kw_arg->keyword_len;
         if (kw_flag == VM_CALL_KWARG) {
             /* copy kw_argv */
@@ -419,6 +440,7 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
         args_init_last_hash(args);
 
         if (kw_flag & VM_CALL_KW_SPLAT) {
+            args->kw_type = KWT_SPLAT;
             VM_ASSERT(args->last_hash);
         }
     }
