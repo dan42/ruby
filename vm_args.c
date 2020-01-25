@@ -19,6 +19,14 @@ MJIT_FUNC_EXPORTED
 #endif
 const rb_callable_method_entry_t *rb_resolve_refined_method_callable(VALUE refinements, const rb_callable_method_entry_t *me);
 
+enum keyword_type {
+    KWT_KWHASH = -2,
+    KWT_DATAHASH = -1,
+    KWT_NONE = 0,
+    KWT_SPLAT = 1,
+    KWT_KWARG = 2
+};
+
 struct args_info {
     /* basic args info */
     VALUE *argv;
@@ -30,6 +38,7 @@ struct args_info {
     VALUE rest;
 
     /* keyword args info */
+    enum keyword_type kw_type;
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
     VALUE last_hash;
@@ -87,9 +96,12 @@ args_init_last_hash(struct args_info *args)
     last_arg = rb_check_hash_type(last_arg);
     if (NIL_P(last_arg)) {
         args->last_hash = 0;
+        args->kw_type = KWT_NONE;
     }
     else {
         args->last_hash = last_arg;
+        int flag = ((struct RHash *)args->last_hash)->basic.flags & RHASH_PASS_AS_KEYWORDS;
+        args->kw_type = flag ? KWT_KWHASH : KWT_DATAHASH;
     }
 }
 
@@ -383,12 +395,15 @@ args_kw_argv_to_hash(struct args_info *args)
 
     args->argc++;
     args_set_last_hash(args, h);
+    args->kw_type = KWT_SPLAT;
 }
 
 static inline void
 args_kw_init(struct args_info *args, unsigned int kw_flag, int receiver_kwrest)
 {
     if (kw_flag & VM_CALL_KWARG) {
+        args->kw_type = KWT_KWARG;
+
         int kw_len = args->kw_arg->keyword_len;
         if (kw_flag == VM_CALL_KWARG) {
             /* copy kw_argv */
@@ -408,6 +423,8 @@ args_kw_init(struct args_info *args, unsigned int kw_flag, int receiver_kwrest)
         args_init_last_hash(args);
 
         if (kw_flag & VM_CALL_KW_SPLAT) {
+            args->kw_type = KWT_SPLAT;
+
             if (receiver_kwrest) {
                 args->last_hash = rb_hash_dup(args->last_hash);
             }
