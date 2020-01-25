@@ -147,6 +147,9 @@ rb_warning_category_from_name(VALUE category)
     else if (category == ID2SYM(rb_intern("experimental"))) {
         cat = RB_WARN_CATEGORY_EXPERIMENTAL;
     }
+    else if (category == ID2SYM(rb_intern("ruby2_incompatible"))) {
+        cat = RB_WARN_CATEGORY_RUBY2_INCOMPATIBLE;
+    }
     else {
         rb_raise(rb_eArgError, "unknown category: %"PRIsVALUE, category);
     }

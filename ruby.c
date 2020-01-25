@@ -1015,6 +1015,8 @@ proc_options(long argc, char **argv, ruby_cmdline_options_t *opt, int envopt)
     const char *s;
     int warning = opt->warning;
 
+    FEATURE_SET_TO(opt->warn, 1U << RB_WARN_CATEGORY_RUBY2_INCOMPATIBLE, 0);
+
     if (argc <= 0 || !argv)
 	return 0;
 
@@ -1081,6 +1083,9 @@ proc_options(long argc, char **argv, ruby_cmdline_options_t *opt, int envopt)
                 }
                 else if (NAME_MATCH_P("experimental", s, len)) {
                     bits = 1U << RB_WARN_CATEGORY_EXPERIMENTAL;
+                }
+                else if (NAME_MATCH_P("ruby2_incompatible", s, len)) {
+                    bits = 1U << RB_WARN_CATEGORY_RUBY2_INCOMPATIBLE;
                 }
                 else {
                     rb_warn("unknown warning category: `%s'", s);

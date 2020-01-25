@@ -689,9 +689,11 @@ VALUE rb_iseq_location(const rb_iseq_t *iseq);
 static st_table *caller_to_callees = 0;
 
 static VALUE
-rb_warn_check(const rb_execution_context_t * const ec, const rb_iseq_t *const iseq)
+rb_warn_check(const rb_execution_context_t * const ec, const rb_iseq_t *const iseq, const int fix_when)
 {
     if (!rb_warning_category_enabled_p(RB_WARN_CATEGORY_DEPRECATED)) return 1;
+
+    if (fix_when == 2 && !rb_warning_category_enabled_p(RB_WARN_CATEGORY_RUBY2_INCOMPATIBLE)) return 1;
 
     if (!iseq) return 0;
 
@@ -733,23 +735,24 @@ rb_warn_check(const rb_execution_context_t * const ec, const rb_iseq_t *const is
 }
 
 static inline void
-rb_warn_keyword_to_last_hash(rb_execution_context_t * const ec, struct rb_calling_info *calling, const struct rb_call_info *ci, const rb_iseq_t * const iseq)
+rb_warn_keyword_to_last_hash(rb_execution_context_t * const ec, struct rb_calling_info *calling, const struct rb_call_info *ci, const rb_iseq_t * const iseq, const int fix_when)
 {
-    if (rb_warn_check(ec, iseq)) return;
+    if (rb_warn_check(ec, iseq, fix_when)) return;
 
+    const char *fix = fix_when == 0 ? "FIX NOW" : fix_when == 1 ? "fix now" : "\e[7mfix in 3.x\e[27m";
     VALUE name, loc;
     if (calling->recv == Qundef) {
-        rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
+        rb_warn("Passing the keyword argument as the last hash parameter is deprecated [%s]", fix);
         return;
     }
     name = rb_id2str(ci->mid);
     loc = rb_iseq_location(iseq);
     if (NIL_P(loc)) {
-        rb_warn("Passing the keyword argument for `%"PRIsVALUE"' as the last hash parameter is deprecated",
-                name);
+        rb_warn("Passing the keyword argument for `%"PRIsVALUE"' as the last hash parameter is deprecated [%s]",
+                name, fix);
     }
     else {
-        rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
+        rb_warn("Passing the keyword argument as the last hash parameter is deprecated [%s]", fix);
         if (name) {
             rb_compile_warn(RSTRING_PTR(RARRAY_AREF(loc, 0)), FIX2INT(RARRAY_AREF(loc, 1)),
                             "The called method `%"PRIsVALUE"' is defined here", name);
@@ -764,17 +767,18 @@ rb_warn_keyword_to_last_hash(rb_execution_context_t * const ec, struct rb_callin
 static inline void
 rb_warn_split_last_hash_to_keyword(rb_execution_context_t * const ec, struct rb_calling_info *calling, const struct rb_call_info *ci, const rb_iseq_t * const iseq)
 {
-    if (rb_warn_check(ec, iseq)) return;
+    if (rb_warn_check(ec, iseq, 0)) return;
 
+    const char *fix = "FIX NOW";
     VALUE name, loc;
     name = rb_id2str(ci->mid);
     loc = rb_iseq_location(iseq);
     if (NIL_P(loc)) {
-        rb_warn("Splitting the last argument for `%"PRIsVALUE"' into positional and keyword parameters is deprecated",
-                name);
+        rb_warn("Splitting the last argument for `%"PRIsVALUE"' into positional and keyword parameters is deprecated [%s]",
+                name, fix);
     }
     else {
-        rb_warn("Splitting the last argument into positional and keyword parameters is deprecated");
+        rb_warn("Splitting the last argument into positional and keyword parameters is deprecated [%s]", fix);
         if (calling->recv != Qundef) {
             rb_compile_warn(RSTRING_PTR(RARRAY_AREF(loc, 0)), FIX2INT(RARRAY_AREF(loc, 1)),
                             "The called method `%"PRIsVALUE"' is defined here", name);
@@ -787,19 +791,20 @@ rb_warn_split_last_hash_to_keyword(rb_execution_context_t * const ec, struct rb_
 }
 
 static inline void
-rb_warn_last_hash_to_keyword(rb_execution_context_t * const ec, struct rb_calling_info *calling, const struct rb_call_info *ci, const rb_iseq_t * const iseq)
+rb_warn_last_hash_to_keyword(rb_execution_context_t * const ec, struct rb_calling_info *calling, const struct rb_call_info *ci, const rb_iseq_t * const iseq, const int fix_when)
 {
-    if (rb_warn_check(ec, iseq)) return;
+    if (rb_warn_check(ec, iseq, fix_when)) return;
 
+    const char *fix = fix_when == 0 ? "FIX NOW" : fix_when == 1 ? "fix now" : "\e[7mfix in 3.x\e[27m";
     VALUE name, loc;
     name = rb_id2str(ci->mid);
     loc = rb_iseq_location(iseq);
     if (NIL_P(loc)) {
-        rb_warn("Using the last argument for `%"PRIsVALUE"' as keyword parameters is deprecated; maybe ** should be added to the call",
-                name);
+        rb_warn("Using the last argument for `%"PRIsVALUE"' as keyword parameters is deprecated; maybe ** should be added to the call [%s]",
+                name, fix);
     }
     else {
-        rb_warn("Using the last argument as keyword parameters is deprecated; maybe ** should be added to the call");
+        rb_warn("Using the last argument as keyword parameters is deprecated; maybe ** should be added to the call [%s]", fix);
         if (calling->recv != Qundef) {
             rb_compile_warn(RSTRING_PTR(RARRAY_AREF(loc, 0)), FIX2INT(RARRAY_AREF(loc, 1)),
                             "The called method `%"PRIsVALUE"' is defined here", name);
@@ -913,7 +918,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 }
             }
             else {
-                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq, 2);
             }
         }
         else if (!remove_empty_keyword_hash) {
@@ -954,7 +959,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
           case KWT_SPLAT:
             if (nb(args) == min_argc) {
                 /* not enough args, must use keywords as positional */
-                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq, 1);
             }
             else {
                 /* keywords can be sent as keywords */
@@ -963,9 +968,11 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 
                 switch (args_pop_keyword_hash(args, check_only_symbol)) {
                   case POP_KW_NO_SYMBOL:
-                    rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
+                    /* hash has non-symbol keys only but receiver has kwargs only => error */
+                    rb_warn_keyword_to_last_hash(ec, calling, ci, iseq, 1);
                     break;
                   case POP_KW_SPLIT:
+                    /* change behavior to pass as keywords */
                     rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
                     break;
                   case POP_KW_OK:
@@ -982,9 +989,16 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 /* optional args allow ambiguity; use hash as positional or keyword? */
                 switch (args_pop_keyword_hash(args, 1)) {
                   case POP_KW_OK:
-                    rb_warn_last_hash_to_keyword(ec, calling, ci, iseq);
+                    /* change behavior to pass as positional hash */
+                    if (args->kw_type == KWT_KWHASH) {
+                        rb_warn_last_hash_to_keyword(ec, calling, ci, iseq, 2);
+                    }
+                    else {
+                        rb_warn_last_hash_to_keyword(ec, calling, ci, iseq, nb(args) == max_argc ? 1 : 0);
+                    }
                     break;
                   case POP_KW_SPLIT:
+                    /* change behavior to pass as positional hash */
                     rb_warn_split_last_hash_to_keyword(ec, calling, ci, iseq);
                     break;
                   case POP_KW_NO_SYMBOL:
