@@ -68,13 +68,7 @@ vm_call0_cfunc_with_frame(rb_execution_context_t* ec, struct rb_calling_info *ca
     int frame_flags = VM_FRAME_MAGIC_CFUNC | VM_FRAME_FLAG_CFRAME | VM_ENV_FLAG_LOCAL;
 
     if (calling->kw_splat) {
-        if (argc > 0 && RB_TYPE_P(argv[argc-1], T_HASH) && RHASH_EMPTY_P(argv[argc-1])) {
-            frame_flags |= VM_FRAME_FLAG_CFRAME_EMPTY_KW;
-            argc--;
-        }
-        else {
-            frame_flags |= VM_FRAME_FLAG_CFRAME_KW;
-        }
+        frame_flags |= VM_FRAME_FLAG_CFRAME_KW;
     }
 
     RUBY_DTRACE_CMETHOD_ENTRY_HOOK(ec, me->owner, me->def->original_id);
@@ -141,15 +135,10 @@ vm_call0_body(rb_execution_context_t *ec, struct rb_calling_info *calling, struc
 	goto success;
       case VM_METHOD_TYPE_ATTRSET:
         if (calling->kw_splat &&
-                calling->argc > 0 &&
+                calling->argc > 1 &&
                 RB_TYPE_P(argv[calling->argc-1], T_HASH) &&
                 RHASH_EMPTY_P(argv[calling->argc-1])) {
-            if (calling->argc == 1) {
-                rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
-            }
-            else {
-                calling->argc--;
-            }
+            calling->argc--;
         }
 
 	rb_check_arity(calling->argc, 1, 1);

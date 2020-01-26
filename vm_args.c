@@ -841,7 +841,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     struct args_info args_body, *args;
     VALUE * const orig_sp = ec->cfp->sp;
     unsigned int i;
-    int remove_empty_keyword_hash = 1;
     VALUE flag_keyword_hash = 0;
 
     vm_check_canary(ec, orig_sp);
@@ -882,10 +881,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
     args_kw_init(args, ci->flag);
 
-    if (args->kw_type > 0 && iseq->body->param.flags.ruby2_keywords) {
-        remove_empty_keyword_hash = 0;
-    }
-
     if (ci->flag & VM_CALL_ARGS_SPLAT) {
         VALUE rest_last = 0;
         int len;
@@ -898,9 +893,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 rest_last = rb_hash_dup(rest_last);
                 args_set_last_hash(args, rest_last);
                 args->kw_type = KWT_SPLAT;
-                if (iseq->body->param.flags.ruby2_keywords) {
-                    remove_empty_keyword_hash = 0;
-                }
             }
         }
     }
@@ -914,22 +906,8 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
 
     if (args->kw_type == KWT_SPLAT) {
-        if (!receiver_kw && args->last_hash && RHASH_EMPTY_P(args->last_hash)) {
-            if (nb(args) != min_argc) {
-                if (remove_empty_keyword_hash) {
-                    args_last_pop(args);
-                    args->kw_type = KWT_NONE;
-                }
-                else {
-                    if (!args->kw_dupped) args_set_last_hash(args, rb_hash_dup(args->last_hash));
-                    flag_keyword_hash = args->last_hash;
-                }
-            }
-            else {
-                rb_warn_keyword_to_last_hash(ec, calling, ci, iseq, 2);
-            }
-        }
-        else if (!remove_empty_keyword_hash) {
+        if (iseq->body->param.flags.ruby2_keywords) {
+            if (!args->kw_dupped) args_set_last_hash(args, rb_hash_dup(args->last_hash));
             flag_keyword_hash = args->last_hash;
         }
     }
@@ -939,7 +917,13 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
 
     if (args->kw_type > 0 && iseq->body->param.flags.accepts_no_kwarg) {
-	rb_raise(rb_eArgError, "no keywords accepted");
+        if (args->kw_type == KWT_SPLAT && args->last_hash && RHASH_EMPTY_P(args->last_hash)) {
+            args_last_pop(args);
+            args->kw_type = KWT_NONE;
+        }
+        else {
+            rb_raise(rb_eArgError, "no keywords accepted");
+        }
     }
 
     /* argc check */
@@ -1032,6 +1016,9 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     args_pop_keyword_hash(args, 0);
                 }
                 else if (args->nonexistent_keywords == Qtrue) {
+                    args_pop_keyword_hash(args, 0);
+                }
+                else if (args->nonexistent_keywords == Qnil && !iseq->body->param.flags.ruby2_keywords) {
                     args_pop_keyword_hash(args, 0);
                 }
             }

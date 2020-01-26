@@ -4047,6 +4047,17 @@ rb_obj_dig(int argc, VALUE *argv, VALUE obj, VALUE notfound)
 {
     struct dig_method hash = {Qnil}, ary = {Qnil}, strt = {Qnil};
 
+    int empty_keyword_given = rb_empty_keyword_given_p();
+    if (argc > 0 && rb_keyword_given_p()) {
+        VALUE v = argv[argc-1];
+        if (RB_TYPE_P(v, T_HASH) && RHASH_EMPTY_P(v) && OBJ_FROZEN(v)) {
+            if (rb_ivar_lookup(v, rb_intern("nonexistent_keywords"), Qfalse) == Qnil) {
+                argc--;
+                empty_keyword_given = 1;
+            }
+        }
+    }
+
     for (; argc > 0; ++argv, --argc) {
 	if (NIL_P(obj)) return notfound;
 	if (!SPECIAL_CONST_P(obj)) {
@@ -4073,7 +4084,7 @@ rb_obj_dig(int argc, VALUE *argv, VALUE obj, VALUE notfound)
 	}
         return rb_check_funcall_with_hook_kw(obj, id_dig, argc, argv,
                                           no_dig_method, obj,
-                                          rb_empty_keyword_given_p() ?
+                                          empty_keyword_given ?
                                             RB_PASS_EMPTY_KEYWORDS :
                                             RB_NO_KEYWORDS);
     }

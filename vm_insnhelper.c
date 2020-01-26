@@ -1957,16 +1957,17 @@ CALLER_SETUP_ARG(struct rb_control_frame_struct *restrict cfp,
                  const struct rb_call_info *restrict ci)
 {
     if (UNLIKELY(IS_ARGS_SPLAT(ci))) {
-        VALUE final_hash;
         /* This expands the rest argument to the stack.
          * So, ci->flag & VM_CALL_ARGS_SPLAT is now inconsistent.
          */
         vm_caller_setup_arg_splat(cfp, calling);
-        if (!IS_ARGS_KW_OR_KW_SPLAT(ci) &&
-                calling->argc > 0 &&
-                RB_TYPE_P((final_hash = *(cfp->sp - 1)), T_HASH) &&
-                (((struct RHash *)final_hash)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
-            *(cfp->sp - 1) = rb_hash_dup(final_hash);
+    }
+    if (!IS_ARGS_KW_OR_KW_SPLAT(ci) && calling->argc > 0) {
+        /* This ensures that an empty keyword-flagged hash can later be
+         * removed by CALLER_REMOVE_EMPTY_KW_SPLAT.
+         */
+        VALUE final_hash = *(cfp->sp - 1);
+        if (RB_TYPE_P(final_hash, T_HASH) && (((struct RHash *)final_hash)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
             calling->kw_splat = RB_PASS_KEYWORDS;
         }
     }
@@ -1982,16 +1983,12 @@ CALLER_SETUP_ARG(struct rb_control_frame_struct *restrict cfp,
 static inline void
 CALLER_REMOVE_EMPTY_KW_SPLAT(struct rb_control_frame_struct *restrict cfp,
                              struct rb_calling_info *restrict calling,
-                             const struct rb_call_info *restrict ci)
+                             int max_argc)
 {
-    if (UNLIKELY(calling->kw_splat)) {
-        /* This removes the last Hash object if it is empty.
+    if (UNLIKELY(calling->kw_splat && calling->argc == max_argc+1)) {
+        /* This removes the last Hash object if it is empty
+         * and doing so prevents an ArgumentError.
          * So, ci->flag & VM_CALL_KW_SPLAT is now inconsistent.
-         * However, you can use ci->flag & VM_CALL_KW_SPLAT to
-         * determine whether a hash should be added back with
-         * warning (for backwards compatibility in cases where
-         * the method does not have the number of required
-         * arguments.
          */
         if (RHASH_EMPTY_P(cfp->sp[-1])) {
             cfp->sp--;
@@ -2146,8 +2143,8 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
         if (LIKELY(rb_simple_iseq_p(iseq))) {
             rb_control_frame_t *cfp = ec->cfp;
             CALLER_SETUP_ARG(cfp, calling, ci);
-            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, ci);
 
+            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, iseq->body->param.lead_num);
             if (calling->argc != iseq->body->param.lead_num) {
                 argument_arity_error(ec, iseq, calling->argc, iseq->body->param.lead_num, iseq->body->param.lead_num);
             }
@@ -2158,10 +2155,11 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
         else if (rb_iseq_only_optparam_p(iseq)) {
             rb_control_frame_t *cfp = ec->cfp;
             CALLER_SETUP_ARG(cfp, calling, ci);
-            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, ci);
 
             const int lead_num = iseq->body->param.lead_num;
             const int opt_num = iseq->body->param.opt_num;
+            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, lead_num + opt_num);
+
             const int argc = calling->argc;
             const int opt = argc - lead_num;
 
@@ -2479,7 +2477,7 @@ vm_method_cfunc_entry(const rb_callable_method_entry_t *me)
 
 /* -- Remove empty_kw_splat In 3.0 -- */
 static VALUE
-vm_call_cfunc_with_frame(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, struct rb_calling_info *calling, struct rb_call_data *cd, int empty_kw_splat)
+vm_call_cfunc_with_frame(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, struct rb_calling_info *calling, struct rb_call_data *cd)
 {
     const struct rb_call_info *ci = &cd->ci;
     const struct rb_call_cache *cc = &cd->cc;
@@ -2496,9 +2494,6 @@ vm_call_cfunc_with_frame(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp
 
     if (UNLIKELY(calling->kw_splat)) {
         frame_type |= VM_FRAME_FLAG_CFRAME_KW;
-    }
-    else if (UNLIKELY(empty_kw_splat)) {
-        frame_type |= VM_FRAME_FLAG_CFRAME_EMPTY_KW;
     }
 
     RUBY_DTRACE_CMETHOD_ENTRY_HOOK(ec, me->owner, me->def->original_id);
@@ -2527,16 +2522,10 @@ static VALUE
 vm_call_cfunc(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, struct rb_calling_info *calling, struct rb_call_data *cd)
 {
     const struct rb_call_info *ci = &cd->ci;
-    int empty_kw_splat;
     RB_DEBUG_COUNTER_INC(ccf_cfunc);
 
     CALLER_SETUP_ARG(reg_cfp, calling, ci);
-    empty_kw_splat = calling->kw_splat;
-    CALLER_REMOVE_EMPTY_KW_SPLAT(reg_cfp, calling, ci);
-    if (empty_kw_splat && calling->kw_splat) {
-        empty_kw_splat = 0;
-    }
-    return vm_call_cfunc_with_frame(ec, reg_cfp, calling, cd, empty_kw_splat);
+    return vm_call_cfunc_with_frame(ec, reg_cfp, calling, cd);
 }
 
 static VALUE
@@ -2926,13 +2915,7 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
 
       case VM_METHOD_TYPE_ATTRSET:
         CALLER_SETUP_ARG(cfp, calling, ci);
-        if (calling->argc == 1 && calling->kw_splat && RHASH_EMPTY_P(cfp->sp[-1])) {
-            rb_warn_keyword_to_last_hash(ec, calling, ci, NULL, 1);
-        }
-        else {
-            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, ci);
-        }
-
+        CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, 1);
 	rb_check_arity(calling->argc, 1, 1);
 	cc->aux.index = 0;
         CC_SET_FASTPATH(cc, vm_call_attrset, !((ci->flag & VM_CALL_ARGS_SPLAT) || (ci->flag & VM_CALL_KWARG)));
@@ -2940,7 +2923,7 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
 
       case VM_METHOD_TYPE_IVAR:
         CALLER_SETUP_ARG(cfp, calling, ci);
-        CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, ci);
+        CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, 0);
 	rb_check_arity(calling->argc, 0, 0);
 	cc->aux.index = 0;
         CC_SET_FASTPATH(cc, vm_call_ivar, !(ci->flag & VM_CALL_ARGS_SPLAT));
@@ -3207,6 +3190,7 @@ vm_yield_with_cfunc(rb_execution_context_t *ec,
         frame_flag |= VM_FRAME_FLAG_CFRAME_KW;
         break;
       case RB_PASS_EMPTY_KEYWORDS:
+        VM_ASSERT(0);
         frame_flag |= VM_FRAME_FLAG_CFRAME_EMPTY_KW;
         break;
     }
@@ -3265,11 +3249,9 @@ vm_callee_setup_block_arg(rb_execution_context_t *ec, struct rb_calling_info *ca
 	VALUE arg0;
 
         CALLER_SETUP_ARG(cfp, calling, ci);
-        if (calling->kw_splat && calling->argc == iseq->body->param.lead_num + iseq->body->param.post_num && RHASH_EMPTY_P(cfp->sp[-1])) {
-            rb_warn_keyword_to_last_hash(ec, calling, ci, iseq, 1);
-        }
-        else {
-            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, ci);
+        if (iseq->body->param.flags.has_rest == FALSE) {
+            int max_argc = iseq->body->param.lead_num + iseq->body->param.opt_num + iseq->body->param.post_num;
+            CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, max_argc);
         }
 
 	if (arg_setup_type == arg_setup_block &&
@@ -3368,15 +3350,9 @@ vm_invoke_ifunc_block(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp,
 {
     VALUE val;
     int argc;
-    int kw_splat = calling->kw_splat;
+    int kw_splat;
     CALLER_SETUP_ARG(ec->cfp, calling, ci);
-    CALLER_REMOVE_EMPTY_KW_SPLAT(ec->cfp, calling, ci);
-    if (kw_splat && !calling->kw_splat) {
-        kw_splat = RB_PASS_EMPTY_KEYWORDS;
-    }
-    else {
-        kw_splat = calling->kw_splat;
-    }
+    kw_splat = calling->kw_splat;
     argc = calling->argc;
     val = vm_yield_with_cfunc(ec, captured, captured->self, argc, STACK_ADDR_FROM_TOP(argc), kw_splat, calling->block_handler, NULL);
     POPN(argc); /* TODO: should put before C/yield? */

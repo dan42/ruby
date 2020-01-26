@@ -1215,10 +1215,6 @@ invoke_block_from_c_proc(rb_execution_context_t *ec, const rb_proc_t *proc,
       case block_type_iseq:
         return invoke_iseq_block_from_c(ec, &block->as.captured, self, argc, argv, kw_splat, passed_block_handler, NULL, is_lambda, me);
       case block_type_ifunc:
-        if (kw_splat == RB_PASS_KEYWORDS && RHASH_EMPTY_P(argv[argc-1])) {
-            argc--;
-            kw_splat = RB_PASS_EMPTY_KEYWORDS;
-        }
         return vm_yield_with_cfunc(ec, &block->as.captured, self, argc, argv, kw_splat, passed_block_handler, me);
       case block_type_symbol:
 	return vm_yield_with_symbol(ec, block->as.symbol, argc, argv, kw_splat, passed_block_handler);

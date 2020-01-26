@@ -1245,6 +1245,8 @@ VM_FRAME_CFRAME_KW_P(const rb_control_frame_t *cfp)
 static inline int
 VM_FRAME_CFRAME_EMPTY_KW_P(const rb_control_frame_t *cfp)
 {
+    VM_ASSERT(VM_ENV_FLAGS(cfp->ep, VM_FRAME_FLAG_CFRAME_EMPTY_KW) == 0);
+
     return VM_ENV_FLAGS(cfp->ep, VM_FRAME_FLAG_CFRAME_EMPTY_KW) != 0;
 }
 

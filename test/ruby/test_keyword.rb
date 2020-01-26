@@ -227,7 +227,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -248,12 +248,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.m(**{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(kw, c.m(kw, **kw))
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
@@ -356,7 +356,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       end
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -381,13 +381,13 @@ class TestKeywordArguments < Test::Unit::TestCase
         args
       end
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.m(**{}))
-    end
+    #end
     redef[]
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
     assert_equal(h2, c.m(**h2))
@@ -492,7 +492,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       end
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -517,13 +517,13 @@ class TestKeywordArguments < Test::Unit::TestCase
         args
       end
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.m(**{}))
-    end
+    #end
     redef[]
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
     assert_equal(h2, c.m(**h2))
@@ -616,12 +616,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { f[**h3] }
 
     f = ->(a) { a }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, f[**{}])
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, f[**kw])
-    end
+    #end
     assert_equal(h, f[**h])
     assert_equal(h, f[a: 1])
     assert_equal(h2, f[**h2])
@@ -694,12 +694,12 @@ class TestKeywordArguments < Test::Unit::TestCase
 
     f = ->(a) { a }
     f = f.method(:call)
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, f[**{}])
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, f[**kw])
-    end
+    #end
     assert_equal(h, f[**h])
     assert_equal(h, f[a: 1])
     assert_equal(h2, f[**h2])
@@ -775,12 +775,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { t.new(**h3, &f).value }
 
     f = ->(a) { a }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, t.new(**{}, &f).value)
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, t.new(**kw, &f).value)
-    end
+    #end
     assert_equal(h, t.new(**h, &f).value)
     assert_equal(h, t.new(a: 1, &f).value)
     assert_equal(h2, t.new(**h2, &f).value)
@@ -854,12 +854,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { t.new(&f).resume(**h3) }
 
     f = ->(a) { a }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, t.new(&f).resume(**{}))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, t.new(&f).resume(**kw))
-    end
+    #end
     assert_equal(h, t.new(&f).resume(**h))
     assert_equal(h, t.new(&f).resume(a: 1))
     assert_equal(h2, t.new(&f).resume(**h2))
@@ -931,12 +931,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { g.new(&f).each(**h3) }
 
     f = ->(_, a) { a }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, g.new(&f).each(**{}))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, g.new(&f).each(**kw))
-    end
+    #end
     assert_equal(h, g.new(&f).each(**h))
     assert_equal(h, g.new(&f).each(a: 1))
     assert_equal(h2, g.new(&f).each(**h2))
@@ -1008,12 +1008,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { g.new{|y| y.yield(**h3)}.each(&f) }
 
     f = ->(a) { a }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, g.new{|y| y.yield(**{})}.each(&f))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, g.new{|y| y.yield(**kw)}.each(&f))
-    end
+    #end
     assert_equal(h, g.new{|y| y.yield(**h)}.each(&f))
     assert_equal(h, g.new{|y| y.yield(a: 1)}.each(&f))
     assert_equal(h2, g.new{|y| y.yield(**h2)}.each(&f))
@@ -1088,7 +1088,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       end
     end
     assert_equal([], c[**{}].args)
-    assert_equal([], c[**kw].args)
+    assert_equal([{}], c[**kw].args)
     assert_equal([h], c[**h].args)
     assert_equal([h], c[a: 1].args)
     assert_equal([h2], c[**h2].args)
@@ -1111,12 +1111,12 @@ class TestKeywordArguments < Test::Unit::TestCase
         @args = args
       end
     end
-    assert_warn_kw2hash(:initialize) do
+    #assert_warn_kw2hash(:initialize) do
       assert_equal(kw, c[**{}].args)
-    end
-    assert_warn_kw2hash(:initialize) do
+    #end
+    #assert_warn_kw2hash(:initialize) do
       assert_equal(kw, c[**kw].args)
-    end
+    #end
     assert_equal(h, c[**h].args)
     assert_equal(h, c[a: 1].args)
     assert_equal(h2, c[**h2].args)
@@ -1200,7 +1200,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       end
     end.method(:new)
     assert_equal([], c[**{}].args)
-    assert_equal([], c[**kw].args)
+    assert_equal([{}], c[**kw].args)
     assert_equal([h], c[**h].args)
     assert_equal([h], c[a: 1].args)
     assert_equal([h2], c[**h2].args)
@@ -1223,12 +1223,12 @@ class TestKeywordArguments < Test::Unit::TestCase
         @args = args
       end
     end.method(:new)
-    assert_warn_kw2hash(:initialize) do
+    #assert_warn_kw2hash(:initialize) do
       assert_equal(kw, c[**{}].args)
-    end
-    assert_warn_kw2hash(:initialize) do
+    #end
+    #assert_warn_kw2hash(:initialize) do
       assert_equal(kw, c[**kw].args)
-    end
+    #end
     assert_equal(h, c[**h].args)
     assert_equal(h, c[a: 1].args)
     assert_equal(h2, c[**h2].args)
@@ -1307,7 +1307,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.method(:m)[**{}])
-    assert_equal([], c.method(:m)[**kw])
+    assert_equal([{}], c.method(:m)[**kw])
     assert_equal([h], c.method(:m)[**h])
     assert_equal([h], c.method(:m)[a: 1])
     assert_equal([h2], c.method(:m)[**h2])
@@ -1328,12 +1328,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.method(:m)[**{}])
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.method(:m)[**kw])
-    end
+    #end
     assert_equal(h, c.method(:m)[**h])
     assert_equal(h, c.method(:m)[a: 1])
     assert_equal(h2, c.method(:m)[**h2])
@@ -1410,7 +1410,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], sc.instance_method(:m).bind_call(c, **{}))
-    assert_equal([], sc.instance_method(:m).bind_call(c, **kw))
+    assert_equal([{}], sc.instance_method(:m).bind_call(c, **kw))
     assert_equal([h], sc.instance_method(:m).bind_call(c, **h))
     assert_equal([h], sc.instance_method(:m).bind_call(c, a: 1))
     assert_equal([h2], sc.instance_method(:m).bind_call(c, **h2))
@@ -1431,12 +1431,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, sc.instance_method(:m).bind_call(c, **{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, sc.instance_method(:m).bind_call(c, **kw))
-    end
+    #end
     assert_equal(h, sc.instance_method(:m).bind_call(c, **h))
     assert_equal(h, sc.instance_method(:m).bind_call(c, a: 1))
     assert_equal(h2, sc.instance_method(:m).bind_call(c, **h2))
@@ -1512,7 +1512,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.send(:m, **{}))
-    assert_equal([], c.send(:m, **kw))
+    assert_equal([{}], c.send(:m, **kw))
     assert_equal([h], c.send(:m, **h))
     assert_equal([h], c.send(:m, a: 1))
     assert_equal([h2], c.send(:m, **h2))
@@ -1533,12 +1533,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.send(:m, **{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.send(:m, **kw))
-    end
+    #end
     assert_equal(h, c.send(:m, **h))
     assert_equal(h, c.send(:m, a: 1))
     assert_equal(h2, c.send(:m, **h2))
@@ -1614,7 +1614,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.public_send(:m, **{}))
-    assert_equal([], c.public_send(:m, **kw))
+    assert_equal([{}], c.public_send(:m, **kw))
     assert_equal([h], c.public_send(:m, **h))
     assert_equal([h], c.public_send(:m, a: 1))
     assert_equal([h2], c.public_send(:m, **h2))
@@ -1635,12 +1635,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.public_send(:m, **{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.public_send(:m, **kw))
-    end
+    #end
     assert_equal(h, c.public_send(:m, **h))
     assert_equal(h, c.public_send(:m, a: 1))
     assert_equal(h2, c.public_send(:m, **h2))
@@ -1717,7 +1717,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     end
     m = c.method(:send)
     assert_equal([], m.call(:m, **{}))
-    assert_equal([], m.call(:m, **kw))
+    assert_equal([{}], m.call(:m, **kw))
     assert_equal([h], m.call(:m, **h))
     assert_equal([h], m.call(:m, a: 1))
     assert_equal([h2], m.call(:m, **h2))
@@ -1740,12 +1740,12 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     m = c.method(:send)
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, m.call(:m, **{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, m.call(:m, **kw))
-    end
+    #end
     assert_equal(h, m.call(:m, **h))
     assert_equal(h, m.call(:m, a: 1))
     assert_equal(h2, m.call(:m, **h2))
@@ -1824,7 +1824,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], :m.to_proc.call(c, **{}))
-    assert_equal([], :m.to_proc.call(c, **kw))
+    assert_equal([{}], :m.to_proc.call(c, **kw))
     assert_equal([h], :m.to_proc.call(c, **h))
     assert_equal([h], :m.to_proc.call(c, a: 1))
     assert_equal([h2], :m.to_proc.call(c, **h2))
@@ -1845,12 +1845,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, :m.to_proc.call(c, **{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, :m.to_proc.call(c, **kw))
-    end
+    #end
     assert_equal(h, :m.to_proc.call(c, **h))
     assert_equal(h, :m.to_proc.call(c, a: 1))
     assert_equal(h2, :m.to_proc.call(c, **h2))
@@ -1927,7 +1927,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     end
     m = :m.to_proc.method(:call)
     assert_equal([], m.call(c, **{}))
-    assert_equal([], m.call(c, **kw))
+    assert_equal([{}], m.call(c, **kw))
     assert_equal([h], m.call(c, **h))
     assert_equal([h], m.call(c, a: 1))
     assert_equal([h2], m.call(c, **h2))
@@ -1948,12 +1948,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, m.call(c, **{}))
-    end
-    assert_warn_kw2hash(:m) do
+    #end
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, m.call(c, **kw))
-    end
+    #end
     assert_equal(h, m.call(c, **h))
     assert_equal(h, m.call(c, a: 1))
     assert_equal(h2, m.call(c, **h2))
@@ -2029,7 +2029,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -2050,12 +2050,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.method_missing(_, args)
       args
     end
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.m(**{}))
-    end
-    assert_warn_kw2hash(:method_missing) do
+    #end
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
     assert_equal(h2, c.m(**h2))
@@ -2135,7 +2135,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -2161,13 +2161,13 @@ class TestKeywordArguments < Test::Unit::TestCase
       END
     end
     redef[]
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.m(**{}))
-    end
+    #end
     redef[]
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
     assert_equal(h2, c.m(**h2))
@@ -2255,7 +2255,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -2276,12 +2276,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.method_missing(_, args)
       args
     end
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.m(**{}))
-    end
-    assert_warn_kw2hash(:method_missing) do
+    #end
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
     assert_equal(h2, c.m(**h2))
@@ -2368,12 +2368,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     class << c
       define_method(:m) {|arg| arg }
     end
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.m(**{}))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.m(**kw))
-    end
+    #end
     assert_equal(h, c.m(**h))
     assert_equal(h, c.m(a: 1))
     assert_equal(h2, c.m(**h2))
@@ -2385,7 +2385,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       define_method(:m) {|*args| args }
     end
     assert_equal([], c.m(**{}))
-    assert_equal([], c.m(**kw))
+    assert_equal([{}], c.m(**kw))
     assert_equal([h], c.m(**h))
     assert_equal([h], c.m(a: 1))
     assert_equal([h2], c.m(**h2))
@@ -2496,12 +2496,12 @@ class TestKeywordArguments < Test::Unit::TestCase
       define_method(:m) {|arg| arg }
     end
     m = c.method(:m)
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, m.call(**{}))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, m.call(**kw))
-    end
+    #end
     assert_equal(h, m.call(**h))
     assert_equal(h, m.call(a: 1))
     assert_equal(h2, m.call(**h2))
@@ -2514,7 +2514,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     end
     m = c.method(:m)
     assert_equal([], m.call(**{}))
-    assert_equal([], m.call(**kw))
+    assert_equal([{}], m.call(**kw))
     assert_equal([h], m.call(**h))
     assert_equal([h], m.call(a: 1))
     assert_equal([h2], m.call(**h2))
@@ -2655,12 +2655,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     class << c
       attr_writer :m
     end
-    assert_warn(/Passing the keyword argument for `m=' as the last hash parameter is deprecated/) do
-      c.send(:m=, **{})
-    end
-    assert_warn(/Passing the keyword argument for `m=' as the last hash parameter is deprecated/) do
-      c.send(:m=, **kw)
-    end
+    #assert_warn(/Passing the keyword argument for `m=' as the last hash parameter is deprecated/) do
+      assert_equal({}, c.send(:m=, **{}))
+    #end
+    #assert_warn(/Passing the keyword argument for `m=' as the last hash parameter is deprecated/) do
+      assert_equal({}, c.send(:m=, **kw))
+    #end
     assert_equal(h, c.send(:m=, **h))
     assert_equal(h, c.send(:m=, a: 1))
     assert_equal(h2, c.send(:m=, **h2))
@@ -2687,12 +2687,12 @@ class TestKeywordArguments < Test::Unit::TestCase
       attr_writer :m
     end
     m = c.method(:m=)
-    assert_warn_kw2hash(nil) do
-      m.call(**{})
-    end
-    assert_warn_kw2hash(nil) do
-      m.call(**kw)
-    end
+    #assert_warn_kw2hash(nil) do
+      assert_equal({}, m.call(**{}))
+    #end
+    #assert_warn_kw2hash(nil) do
+      assert_equal({}, m.call(**kw))
+    #end
     assert_equal(h, m.call(**h))
     assert_equal(h, m.call(a: 1))
     assert_equal(h2, m.call(**h2))
@@ -2883,8 +2883,8 @@ class TestKeywordArguments < Test::Unit::TestCase
     o = c.new
 
     assert_equal([1, h1], o.foo_baz2(1, :a=>1))
-    assert_equal([1], o.foo_baz2(1, **{}))
-    assert_equal([h1], o.foo_baz2(h1, **{}))
+    assert_equal([1, {}], o.foo_baz2(1, **{}))
+    assert_equal([h1, {}], o.foo_baz2(h1, **{}))
 
     assert_equal([[1], h1], o.foo(:bar, 1, :a=>1))
     assert_equal([1, h1], o.foo(:baz, 1, :a=>1))
@@ -2923,13 +2923,13 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_equal([[h1], {}], o.store_foo(:bar, h1, **{}))
     assert_equal([h1], o.store_foo(:baz, h1, **{}))
     assert_equal([[h1], {}], o.foo_bar(h1, **{}))
-    assert_equal([h1], o.foo_baz(h1, **{}))
+    assert_equal([h1, {}], o.foo_baz(h1, **{}))
     assert_equal([[h1], {}], o.foo(:foo, :bar, h1, **{}))
     assert_equal([h1], o.foo(:foo, :baz, h1, **{}))
     assert_equal([[h1], {}], o.foo(:foo_bar, h1, **{}))
-    assert_equal([h1], o.foo(:foo_baz, h1, **{}))
+    assert_equal([h1, {}], o.foo(:foo_baz, h1, **{}))
     assert_equal([[h1], {}], o.foo_foo_bar(h1, **{}))
-    assert_equal([h1], o.foo_foo_baz(h1, **{}))
+    assert_equal([h1, {}], o.foo_foo_baz(h1, **{}))
 
     assert_warn_hash2kw(:bar) do
       assert_equal([[1], h1], o.foo(:bar, 1, h1))
@@ -3051,7 +3051,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_equal([1, h1], o.baz(1, :a=>1))
     assert_equal([1, h1], o.baz(1, **h1))
     assert_equal([1, h1], o.baz(1, h1))
-    assert_equal([h1], o.baz(h1, **{}))
+    assert_equal([h1, {}], o.baz(h1, **{}))
 
     o = explicit_super.new
     assert_equal([[1], h1], o.bar(1, :a=>1))
@@ -3064,7 +3064,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_equal([1, h1], o.baz(1, :a=>1))
     assert_equal([1, h1], o.baz(1, **h1))
     assert_equal([1, h1], o.baz(1, h1))
-    assert_equal([h1], o.baz(h1, **{}))
+    assert_equal([h1, {}], o.baz(h1, **{}))
 
     c.class_eval do
       remove_method(:bar)
@@ -3072,13 +3072,13 @@ class TestKeywordArguments < Test::Unit::TestCase
         [args, kw]
       end
     end
-    assert_warn_hash2kw(:bar) do
+    #assert_warn_hash2kw(:bar) do
       assert_equal([[1], h1], o.foo(:pass_bar, 1, :a=>1))
-    end
+    #end
 
-    assert_warn_hash2kw(:initialize) do
+    #assert_warn_hash2kw(:initialize) do
       assert_equal([[1], h1], o.foo(:pass_cfunc, 1, :a=>1))
-    end
+    #end
 
     assert_warn(/Skipping set of ruby2_keywords flag for bar \(method accepts keywords or method does not accept argument splat\)/) do
       assert_nil(c.send(:ruby2_keywords, :bar))
@@ -3130,7 +3130,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_equal([{}], [c].dig(0, **kw))
     assert_equal([h], [c].dig(0, **h))
     assert_equal([h], [c].dig(0, a: 1))
     assert_equal([h2], [c].dig(0, **h2))
@@ -3140,7 +3140,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     c.singleton_class.remove_method(:dig)
     def c.dig; end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_raise(ArgumentError) { [c].dig(0, **kw) }
     assert_raise(ArgumentError) { [c].dig(0, **h) }
     assert_raise(ArgumentError) { [c].dig(0, a: 1) }
     assert_raise(ArgumentError) { [c].dig(0, **h2) }
@@ -3152,8 +3152,8 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
-    assert_equal(kw, [c].dig(0, kw, **kw))
+    assert_equal({}, [c].dig(0, **kw))
+    assert_raise(ArgumentError) { [c].dig(0, kw, **kw) }
     assert_equal(h, [c].dig(0, **h))
     assert_equal(h, [c].dig(0, a: 1))
     assert_equal(h2, [c].dig(0, **h2))
@@ -3165,7 +3165,9 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_warn_hash2kw(:dig) do
+      assert_equal({}, [c].dig(0, **kw))
+    end
     assert_warn_hash2kw(:dig) do
       assert_equal(h, [c].dig(0, **h))
     end
@@ -3191,7 +3193,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       [arg, args]
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_equal([{}, kw], [c].dig(0, **kw))
     assert_equal([h, kw], [c].dig(0, **h))
     assert_equal([h, kw], [c].dig(0, a: 1))
     assert_equal([h2, kw], [c].dig(0, **h2))
@@ -3203,7 +3205,9 @@ class TestKeywordArguments < Test::Unit::TestCase
       [arg, args]
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_warn_hash2kw(:dig) do
+      assert_equal([1, {}], [c].dig(0, **kw))
+    end
     assert_warn_hash2kw(:dig) do
       assert_equal([1, h], [c].dig(0, **h))
     end
@@ -3240,7 +3244,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_equal([{}], [c].dig(0, **kw))
     assert_equal([h], [c].dig(0, **h))
     assert_equal([h], [c].dig(0, a: 1))
     assert_equal([h2], [c].dig(0, **h2))
@@ -3250,7 +3254,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     c.singleton_class.remove_method(:method_missing)
     def c.method_missing; end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_raise(ArgumentError) { [c].dig(0, **kw) }
     assert_raise(ArgumentError) { [c].dig(0, **h) }
     assert_raise(ArgumentError) { [c].dig(0, a: 1) }
     assert_raise(ArgumentError) { [c].dig(0, **h2) }
@@ -3262,8 +3266,8 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
-    assert_equal(kw, [c].dig(0, kw, **kw))
+    assert_equal({}, [c].dig(0, **kw))
+    assert_raise(ArgumentError) { [c].dig(0, kw, **kw) }
     assert_equal(h, [c].dig(0, **h))
     assert_equal(h, [c].dig(0, a: 1))
     assert_equal(h2, [c].dig(0, **h2))
@@ -3275,7 +3279,9 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_warn_hash2kw(:method_missing) do
+      assert_equal({}, [c].dig(0, **kw))
+    end
     assert_warn_hash2kw(:method_missing) do
       assert_equal(h, [c].dig(0, **h))
     end
@@ -3301,7 +3307,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       [arg, args]
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_equal([{}, kw], [c].dig(0, **kw))
     assert_equal([h, kw], [c].dig(0, **h))
     assert_equal([h, kw], [c].dig(0, a: 1))
     assert_equal([h2, kw], [c].dig(0, **h2))
@@ -3313,7 +3319,9 @@ class TestKeywordArguments < Test::Unit::TestCase
       [arg, args]
     end
     assert_equal(c, [c].dig(0, **{}))
-    assert_equal(c, [c].dig(0, **kw))
+    assert_warn_hash2kw(:method_missing) do
+      assert_equal([1, {}], [c].dig(0, **kw))
+    end
     assert_warn_hash2kw(:method_missing) do
       assert_equal([1, h], [c].dig(0, **h))
     end
@@ -3349,7 +3357,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     c.to_enum(:each){|*args| args}.size
     m = ->(*args){ args }
     assert_equal([], c.to_enum(:each, **{}, &m).size)
-    assert_equal([], c.to_enum(:each, **kw, &m).size)
+    assert_equal([{}], c.to_enum(:each, **kw, &m).size)
     assert_equal([h], c.to_enum(:each, **h, &m).size)
     assert_equal([h], c.to_enum(:each, a: 1, &m).size)
     assert_equal([h2], c.to_enum(:each, **h2, &m).size)
@@ -3366,12 +3374,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { c.to_enum(:each, a: 1, **h2, &m).size }
 
     m = ->(args){ args }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.to_enum(:each, **{}, &m).size)
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.to_enum(:each, **kw, &m).size)
-    end
+    #end
     assert_equal(kw, c.to_enum(:each, kw, **kw, &m).size)
     assert_equal(h, c.to_enum(:each, **h, &m).size)
     assert_equal(h, c.to_enum(:each, a: 1, &m).size)
@@ -3447,7 +3455,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     c = Object.new
     m = ->(*args) { args }
     assert_equal([], c.instance_exec(**{}, &m))
-    assert_equal([], c.instance_exec(**kw, &m))
+    assert_equal([{}], c.instance_exec(**kw, &m))
     assert_equal([h], c.instance_exec(**h, &m))
     assert_equal([h], c.instance_exec(a: 1, &m))
     assert_equal([h2], c.instance_exec(**h2, &m))
@@ -3464,12 +3472,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     assert_raise(ArgumentError) { c.instance_exec(a: 1, **h2, &m) }
 
     m = ->(args) { args }
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(**{}, &m))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(**kw, &m))
-    end
+    #end
     assert_equal(kw, c.instance_exec(kw, **kw, &m))
     assert_equal(h, c.instance_exec(**h, &m))
     assert_equal(h, c.instance_exec(a: 1, &m))
@@ -3548,7 +3556,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     end
     m  = c.method(:m)
     assert_equal([], c.instance_exec(**{}, &m))
-    assert_equal([], c.instance_exec(**kw, &m))
+    assert_equal([{}], c.instance_exec(**kw, &m))
     assert_equal([h], c.instance_exec(**h, &m))
     assert_equal([h], c.instance_exec(a: 1, &m))
     assert_equal([h2], c.instance_exec(**h2, &m))
@@ -3572,12 +3580,12 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     m  = c.method(:m)
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(**{}, &m))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(**kw, &m))
-    end
+    #end
     assert_equal(kw, c.instance_exec(kw, **kw, &m))
     assert_equal(h, c.instance_exec(**h, &m))
     assert_equal(h, c.instance_exec(a: 1, &m))
@@ -3668,7 +3676,7 @@ class TestKeywordArguments < Test::Unit::TestCase
     end
     m  = c.method(:m)
     assert_equal([], c.instance_exec(**{}, &m))
-    assert_equal([], c.instance_exec(**kw, &m))
+    assert_equal([{}], c.instance_exec(**kw, &m))
     assert_equal([h], c.instance_exec(**h, &m))
     assert_equal([h], c.instance_exec(a: 1, &m))
     assert_equal([h2], c.instance_exec(**h2, &m))
@@ -3692,12 +3700,12 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     m  = c.method(:m)
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(**{}, &m))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(**kw, &m))
-    end
+    #end
     assert_equal(kw, c.instance_exec(kw, **kw, &m))
     assert_equal(h, c.instance_exec(**h, &m))
     assert_equal(h, c.instance_exec(a: 1, &m))
@@ -3787,7 +3795,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.instance_exec(c, **{}, &:m))
-    assert_equal([], c.instance_exec(c, **kw, &:m))
+    assert_equal([{}], c.instance_exec(c, **kw, &:m))
     assert_equal([h], c.instance_exec(c, **h, &:m))
     assert_equal([h], c.instance_exec(c, a: 1, &:m))
     assert_equal([h2], c.instance_exec(c, **h2, &:m))
@@ -3809,12 +3817,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.m(args)
       args
     end
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(c, **{}, &:m))
-    end
-    assert_warn_kw2hash(nil) do
+    #end
+    #assert_warn_kw2hash(nil) do
       assert_equal(kw, c.instance_exec(c, **kw, &:m))
-    end
+    #end
     assert_equal(kw, c.instance_exec(c, kw, **kw, &:m))
     assert_equal(h, c.instance_exec(c, **h, &:m))
     assert_equal(h, c.instance_exec(c, a: 1, &:m))
@@ -3905,7 +3913,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       args
     end
     assert_equal([], c.m(:c, **{}))
-    assert_equal([], c.m(:c, **kw))
+    assert_equal([{}], c.m(:c, **kw))
     assert_equal([h], c.m(:c, **h))
     assert_equal([h], c.m(:c, a: 1))
     assert_equal([h2], c.m(:c, **h2))
@@ -3926,12 +3934,12 @@ class TestKeywordArguments < Test::Unit::TestCase
     def c.c(args)
       args
     end
-    assert_warn_kw2hash(:c) do
+    #assert_warn_kw2hash(:c) do
       assert_equal(kw, c.m(:c, **{}))
-    end
-    assert_warn_kw2hash(:c) do
+    #end
+    #assert_warn_kw2hash(:c) do
       assert_equal(kw, c.m(:c, **kw))
-    end
+    #end
     assert_equal(kw, c.m(:c, kw, **kw))
     assert_equal(h, c.m(:c, **h))
     assert_equal(h, c.m(:c, a: 1))
@@ -4711,7 +4719,7 @@ class TestKeywordArgumentsSymProcRefinements < Test::Unit::TestCase
       args
     end
     assert_equal([], c.call(**{}, &:m))
-    assert_equal([], c.call(**kw, &:m))
+    assert_equal([{}], c.call(**kw, &:m))
     assert_equal([h], c.call(**h, &:m))
     assert_equal([h], c.call(h, **{}, &:m))
     assert_equal([h], c.call(a: 1, &:m))
@@ -4738,13 +4746,13 @@ class TestKeywordArgumentsSymProcRefinements < Test::Unit::TestCase
       END
     end
     redef[]
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.call(**{}, &:m))
-    end
+    #end
     redef[]
-    assert_warn_kw2hash(:m) do
+    #assert_warn_kw2hash(:m) do
       assert_equal(kw, c.call(**kw, &:m))
-    end
+    #end
     assert_equal(h, c.call(**h, &:m))
     assert_equal(h, c.call(a: 1, &:m))
     assert_equal(h2, c.call(**h2, &:m))
@@ -4831,7 +4839,7 @@ class TestKeywordArgumentsSymProcRefinements < Test::Unit::TestCase
       args
     end
     assert_equal([], c.call(**{}, &:m))
-    assert_equal([], c.call(**kw, &:m))
+    assert_equal([{}], c.call(**kw, &:m))
     assert_equal([h], c.call(**h, &:m))
     assert_equal([h], c.call(h, **{}, &:m))
     assert_equal([h], c.call(a: 1, &:m))
@@ -4858,13 +4866,13 @@ class TestKeywordArgumentsSymProcRefinements < Test::Unit::TestCase
       END
     end
     redef[]
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.call(**{}, &:m))
-    end
+    #end
     redef[]
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.call(**kw, &:m))
-    end
+    #end
     assert_equal(h, c.call(**h, &:m))
     assert_equal(h, c.call(a: 1, &:m))
     assert_equal(h2, c.call(**h2, &:m))
@@ -4951,7 +4959,7 @@ class TestKeywordArgumentsSymProcRefinements < Test::Unit::TestCase
       args
     end
     assert_equal([], c.call(**{}, &:m2))
-    assert_equal([], c.call(**kw, &:m2))
+    assert_equal([{}], c.call(**kw, &:m2))
     assert_equal([h], c.call(**h, &:m2))
     assert_equal([h], c.call(h, **{}, &:m2))
     assert_equal([h], c.call(a: 1, &:m2))
@@ -4978,13 +4986,13 @@ class TestKeywordArgumentsSymProcRefinements < Test::Unit::TestCase
       END
     end
     redef[]
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.call(**{}, &:m2))
-    end
+    #end
     redef[]
-    assert_warn_kw2hash(:method_missing) do
+    #assert_warn_kw2hash(:method_missing) do
       assert_equal(kw, c.call(**kw, &:m2))
-    end
+    #end
     assert_equal(h, c.call(**h, &:m2))
     assert_equal(h, c.call(a: 1, &:m2))
     assert_equal(h2, c.call(**h2, &:m2))
