@@ -5350,7 +5350,10 @@ assoc		: arg_value tASSOC arg_value
                             !($2->nd_head && $2->nd_head->nd_alen)) {
                             static VALUE empty_hash;
                             if (!empty_hash) {
-                                empty_hash = rb_obj_freeze(rb_hash_new());
+                                /* special hash object for **{} */
+                                empty_hash = rb_hash_new();
+                                rb_ivar_set(empty_hash, rb_intern("nonexistent_keywords"), Qnil);
+                                rb_obj_freeze(empty_hash);
                                 rb_gc_register_mark_object(empty_hash);
                             }
                             $$ = list_append(p, NEW_LIST(0, &@$), NEW_LIT(empty_hash, &@$));

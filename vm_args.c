@@ -39,6 +39,7 @@ struct args_info {
 
     /* keyword args info */
     enum keyword_type kw_type;
+    VALUE nonexistent_keywords;
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
     VALUE last_hash;
@@ -422,6 +423,7 @@ static inline void
 args_kw_init(struct args_info *args, unsigned int kw_flag)
 {
     args->keyword_hash = Qnil;
+    args->nonexistent_keywords = Qfalse;
     args->kw_dupped = FALSE;
 
     if (kw_flag & VM_CALL_KWARG) {
@@ -443,12 +445,18 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
     else {
         args->kw_arg = NULL;
         args->kw_argv = NULL;
-        args_init_last_hash(args);
 
         if (kw_flag & VM_CALL_KW_SPLAT) {
+            args->last_hash = rb_to_hash_type(args_last_get(args));
             args->kw_type = KWT_SPLAT;
             VM_ASSERT(args->last_hash);
             args->kw_dupped = !OBJ_FROZEN(args->last_hash);
+            if (RHASH_EMPTY_P(args->last_hash)) {
+                args->nonexistent_keywords = rb_ivar_lookup(args->last_hash, rb_intern("nonexistent_keywords"), Qfalse);
+            }
+        }
+        else {
+            args_init_last_hash(args);
         }
     }
 }
@@ -1006,6 +1014,13 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     break;
                 }
             }
+            if (NIL_P(args->keyword_hash) && receiver_kw & RECEIVER_HAS_KWSPLAT) {
+                /* keyword hash was not extracted
+                 * creates new empty kwsplat in receiver
+                 */
+                args->keyword_hash = rb_hash_new();
+                rb_ivar_set(args->keyword_hash, rb_intern("nonexistent_keywords"), Qtrue);
+            }
             break;
         }
     }
@@ -1014,6 +1029,9 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
           case KWT_SPLAT:
             if (nb(args) > min_argc) {
                 if (max_argc != UNLIMITED_ARGUMENTS && nb(args) > max_argc) {
+                    args_pop_keyword_hash(args, 0);
+                }
+                else if (args->nonexistent_keywords == Qtrue) {
                     args_pop_keyword_hash(args, 0);
                 }
             }

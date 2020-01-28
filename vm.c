@@ -2842,7 +2842,12 @@ m_core_hash_merge_kwd(VALUE recv, VALUE hash, VALUE kw)
 static VALUE
 core_hash_merge_kwd(VALUE hash, VALUE kw)
 {
-    rb_hash_foreach(rb_to_hash_type(kw), kwmerge_i, hash);
+    if (hash == Qnil) {
+        hash = rb_hash_dup(rb_to_hash_type(kw));
+    }
+    else {
+        rb_hash_foreach(rb_to_hash_type(kw), kwmerge_i, hash);
+    }
     return hash;
 }
 

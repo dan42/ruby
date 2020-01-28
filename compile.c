@@ -4260,9 +4260,19 @@ compile_hash(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *node, int popp
                         ADD_INSN1(ret, line, newhash, INT2FIX(0));
                     }
                 }
+                else if (only_kw) {
+                    /* Only one splatted hash, like foo(*args, **kw)
+                     * We merge into the special value nil so that a dup of the
+                     * hash is created, including the nonexistent_keywords flag.
+                     */
+                    ADD_INSN1(ret, line, putspecialobject, INT2FIX(VM_SPECIAL_OBJECT_VMCORE));
+                    ADD_INSN1(ret, line, putobject, Qnil);
+                    NO_CHECK(COMPILE(ret, "keyword splat", kw));
+                    ADD_SEND(ret, line, id_core_hash_merge_kwd, INT2FIX(2));
+                }
                 else {
                     /* This is not empty hash: **{k:1}.
-                     * We need to clone the hash (if first), or merge the hash to
+                     * We need to create a new hash (if first), and merge the hash to
                      * the accumulated hash (if not first).
                      */
                     ADD_INSN1(ret, line, putspecialobject, INT2FIX(VM_SPECIAL_OBJECT_VMCORE));
