@@ -281,6 +281,12 @@ args_rest_init(struct args_info *args, unsigned int flags)
     if (flags & VM_CALL_ARGS_SPLAT) {
         VM_ASSERT((flags & VM_CALL_KWARG) == 0);
         args->rest = args->argv[--args->argc];
+
+        /* with foo(*args), args is passed by reference but for foo(a,*args) or
+         * foo(*args,k:1) a new args array has already been allocated. */
+        if (args->argc > 0 || flags & VM_CALL_KW_SPLAT) {
+            args->rest_dupped = TRUE;
+        }
     }
 }
 
