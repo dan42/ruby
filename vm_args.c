@@ -422,7 +422,7 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
         args->kw_type = KWT_KWARG;
 
         int kw_len = args->kw_arg->keyword_len;
-        if (kw_flag == VM_CALL_KWARG) {
+        if (args->kw_argv) {
             /* copy kw_argv */
             args->argc -= kw_len;
             MEMCPY(args->kw_argv, args->argv + args->argc, VALUE, kw_len);
@@ -818,7 +818,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     const int receiver_kw = (iseq->body->param.flags.has_kw ? RECEIVER_HAS_KWARG : 0) |
                             (iseq->body->param.flags.has_kwrest ? RECEIVER_HAS_KWSPLAT : 0);
     int opt_pc = 0;
-    unsigned int kw_flag = ci->flag & (VM_CALL_KWARG | VM_CALL_KW_SPLAT);
     struct args_info args_body, *args;
     VALUE keyword_hash = Qnil;
     VALUE * const orig_sp = ec->cfp->sp;
@@ -853,20 +852,18 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 
     args_rest_init(args, ci->flag);
 
-    if (kw_flag & VM_CALL_KWARG) {
+    if (ci->flag & VM_CALL_KWARG) {
+        args->kw_argv = NULL;
 	args->kw_arg = ((struct rb_call_info_with_kwarg *)ci)->kw_arg;
 	if (iseq->body->param.flags.has_kw) {
             /* allocate stack buffer */
 	    int kw_len = args->kw_arg->keyword_len;
 	    args->kw_argv = ALLOCA_N(VALUE, kw_len);
 	}
-	else {
-	    kw_flag |= VM_CALL_KW_SPLAT;
-	}
     }
-    args_kw_init(args, kw_flag);
+    args_kw_init(args, ci->flag);
 
-    if (kw_flag && iseq->body->param.flags.ruby2_keywords) {
+    if (args->kw_type > 0 && iseq->body->param.flags.ruby2_keywords) {
         remove_empty_keyword_hash = 0;
     }
 
@@ -876,12 +873,12 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         len = rest_len(args);
         rest_last = args->last_hash;
 
-        if (!kw_flag && len > 0) {
+        if (args->kw_type <= 0 && len > 0) {
             if (rest_last &&
                 (((struct RHash *)rest_last)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
                 rest_last = rb_hash_dup(rest_last);
                 args_set_last_hash(args, rest_last);
-                kw_flag |= VM_CALL_KW_SPLAT;
+                args->kw_type = KWT_SPLAT;
                 if (iseq->body->param.flags.ruby2_keywords) {
                     remove_empty_keyword_hash = 0;
                 }
@@ -897,12 +894,12 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         }
     }
 
-    if (kw_flag & VM_CALL_KW_SPLAT) {
+    if (args->kw_type == KWT_SPLAT) {
         if (!receiver_kw && args->last_hash && RHASH_EMPTY_P(args->last_hash)) {
             if (nb(args) != min_argc) {
                 if (remove_empty_keyword_hash) {
                     args_last_pop(args);
-                    kw_flag = 0;
+                    args->kw_type = KWT_NONE;
                 }
                 else {
                     flag_keyword_hash = args->last_hash;
@@ -921,7 +918,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
         ((struct RHash *)flag_keyword_hash)->basic.flags |= RHASH_PASS_AS_KEYWORDS;
     }
 
-    if (kw_flag && iseq->body->param.flags.accepts_no_kwarg) {
+    if (args->kw_type > 0 && iseq->body->param.flags.accepts_no_kwarg) {
 	rb_raise(rb_eArgError, "no keywords accepted");
     }
 
@@ -929,7 +926,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     if (nb(args) < min_argc) {
 	if (nb(args) == min_argc - 1 && args->kw_argv) {
             args_kw_argv_to_hash(args);
-            kw_flag = VM_CALL_KW_SPLAT;
 	}
 	else {
 	    if (arg_setup_type == arg_setup_block) {
@@ -944,7 +940,11 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
 
     if (receiver_kw) {
-        if (kw_flag & VM_CALL_KW_SPLAT) {
+        switch (args->kw_type) {
+          case KWT_KWARG:
+            /* kwarg always sent as keywords */
+            break;
+          case KWT_SPLAT:
             if (nb(args) == min_argc) {
                 /* not enough args, must use keywords as positional */
                 rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
@@ -966,8 +966,8 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     break;
                 }
             }
-        }
-        else if (!kw_flag) {
+            break;
+          default:
             if (nb(args) == min_argc) {
                 /* Hash used as positional argument */
             }
@@ -985,16 +985,20 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     break;
                 }
             }
+            break;
         }
-        /* else, kwarg always sent as keywords */
     }
     else {
-        if (kw_flag & VM_CALL_KW_SPLAT) {
+        switch (args->kw_type) {
+          case KWT_SPLAT:
             if (nb(args) > min_argc) {
                 if (max_argc != UNLIMITED_ARGUMENTS && nb(args) > max_argc) {
                     args_pop_keyword_hash(args, &keyword_hash, 0);
                 }
             }
+            break;
+          default:
+            break;
         }
     }
 
