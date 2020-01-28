@@ -386,7 +386,7 @@ args_kw_argv_to_hash(struct args_info *args)
 }
 
 static inline void
-args_kw_init(struct args_info *args, unsigned int kw_flag)
+args_kw_init(struct args_info *args, unsigned int kw_flag, int receiver_kwrest)
 {
     if (kw_flag & VM_CALL_KWARG) {
         int kw_len = args->kw_arg->keyword_len;
@@ -406,6 +406,12 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
         args->kw_arg = NULL;
         args->kw_argv = NULL;
         args_init_last_hash(args);
+
+        if (kw_flag & VM_CALL_KW_SPLAT) {
+            if (receiver_kwrest) {
+                args->last_hash = rb_hash_dup(args->last_hash);
+            }
+        }
     }
 }
 
@@ -608,7 +614,7 @@ args_setup_kw_parameters(rb_execution_context_t *const ec, const rb_iseq_t *cons
 static inline void
 args_setup_kw_rest_parameter(VALUE keyword_hash, VALUE *locals)
 {
-    locals[0] = NIL_P(keyword_hash) ? rb_hash_new() : rb_hash_dup(keyword_hash);
+    locals[0] = NIL_P(keyword_hash) ? rb_hash_new() : keyword_hash;
 }
 
 static inline void
@@ -827,7 +833,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	    kw_flag |= VM_CALL_KW_SPLAT;
 	}
     }
-    args_kw_init(args, kw_flag);
+    args_kw_init(args, kw_flag, iseq->body->param.flags.has_kwrest);
 
     if (kw_flag && iseq->body->param.flags.ruby2_keywords) {
         remove_empty_keyword_hash = 0;
