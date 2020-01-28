@@ -5,6 +5,14 @@ require '-test-/iter'
 
 Warning[:ruby2_incompatible] = true
 
+def ruby2_compatible
+  prev = Warning[:ruby2_incompatible]
+  Warning[:ruby2_incompatible] = false
+  yield
+ensure
+  Warning[:ruby2_incompatible] = prev
+end
+
 def assert_warn_keywords(message, methodname, &block)
   case methodname
   when nil then rx = /#{message}/m
@@ -2709,19 +2717,22 @@ class TestKeywordArguments < Test::Unit::TestCase
   end
 
   def test_proc_ruby2_keywords
+   ruby2_compatible{
     h1 = {:a=>1}
     foo = ->(*args, &block){block.call(*args)}
     assert_same(foo, foo.ruby2_keywords)
 
-    assert_equal([[1], h1], foo.call(1, :a=>1, &->(*args, **kw){[args, kw]}))
+    #assert_warn_hash2kw(nil) do
+      assert_equal([[1], h1], foo.call(1, :a=>1, &->(*args, **kw){[args, kw]}))
+    #end
     assert_equal([1, h1], foo.call(1, :a=>1, &->(*args){args}))
     assert_warn_hash2kw(nil) do
       assert_equal([[1], h1], foo.call(1, {:a=>1}, &->(*args, **kw){[args, kw]}))
     end
     assert_equal([1, h1], foo.call(1, {:a=>1}, &->(*args){args}))
-    assert_warn_kw2hash(nil) do
+    #assert_warn_kw2hash(nil) do
       assert_equal([h1, {}], foo.call(:a=>1, &->(arg, **kw){[arg, kw]}))
-    end
+    #end
     assert_equal(h1, foo.call(:a=>1, &->(arg){arg}))
 
     [->(){}, ->(arg){}, ->(*args, **kw){}, ->(*args, k: 1){}, ->(*args, k: ){}].each do |pr|
@@ -2745,9 +2756,11 @@ class TestKeywordArguments < Test::Unit::TestCase
     end
 
     assert_raise(FrozenError) { ->(*args){}.freeze.ruby2_keywords }
+   }
   end
 
   def test_ruby2_keywords
+   ruby2_compatible{
     c = Class.new do
       ruby2_keywords def foo(meth, *args)
         send(meth, *args)
@@ -3105,10 +3118,13 @@ class TestKeywordArguments < Test::Unit::TestCase
 
     c.freeze
     assert_raise(FrozenError) { c.send(:ruby2_keywords, :baz) }
+   }
   end
 
   def test_top_ruby2_keywords
+   ruby2_compatible{
     assert_in_out_err([], <<-INPUT, ["[1, 2, 3]", "{:k=>1}"], [])
+      Warning[:ruby2_incompatible] = false
       def bar(*a, **kw)
         p a, kw
       end
@@ -3117,6 +3133,7 @@ class TestKeywordArguments < Test::Unit::TestCase
       end
       foo(1, 2, 3, k:1)
     INPUT
+   }
   end
 
   def test_dig_kwsplat

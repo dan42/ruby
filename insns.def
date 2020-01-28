@@ -457,6 +457,7 @@ newarraykwsplat
         val = rb_ary_new4(num-1, STACK_ADDR_FROM_TOP(num));
     }
     else {
+        ((struct RHash *)*STACK_ADDR_FROM_TOP(1))->basic.flags |= RHASH_PASS_AS_KEYWORDS;
         val = rb_ary_new4(num, STACK_ADDR_FROM_TOP(num));
     }
 }

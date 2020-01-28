@@ -92,6 +92,14 @@ args_last_get(struct args_info *args)
     return RARRAY_AREF(args->rest, len - 1);
 }
 
+static VALUE
+flag_as_kwhash(VALUE hash)
+{
+    VM_ASSERT(RB_TYPE_P(hash, T_HASH));
+    ((struct RHash *)hash)->basic.flags |= RHASH_PASS_AS_KEYWORDS;
+    return hash;
+}
+
 static inline int
 is_kwhash(VALUE hash)
 {
@@ -553,6 +561,7 @@ make_rest_kw_hash(const VALUE *passed_keywords, int passed_keyword_len, const VA
 {
     int i;
     VALUE obj = rb_hash_new_with_size(passed_keyword_len);
+    flag_as_kwhash(obj);
 
     for (i=0; i<passed_keyword_len; i++) {
 	if (kw_argv[i] != Qundef) {
@@ -661,6 +670,7 @@ static inline void
 args_setup_kw_rest_parameter(struct args_info *args, VALUE *locals)
 {
     locals[0] = NIL_P(args->keyword_hash) ? rb_hash_new() : args->kw_dupped ? args->keyword_hash : rb_hash_dup(args->keyword_hash);
+    flag_as_kwhash(locals[0]);
 }
 
 static inline void
@@ -841,7 +851,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     struct args_info args_body, *args;
     VALUE * const orig_sp = ec->cfp->sp;
     unsigned int i;
-    VALUE flag_keyword_hash = 0;
 
     vm_check_canary(ec, orig_sp);
     /*
@@ -881,39 +890,12 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
     }
     args_kw_init(args, ci->flag);
 
-    if (ci->flag & VM_CALL_ARGS_SPLAT) {
-        VALUE rest_last = 0;
-        int len;
-        len = rest_len(args);
-        rest_last = args->last_hash;
-
-        if (args->kw_type <= 0 && len > 0) {
-            if (rest_last &&
-                (((struct RHash *)rest_last)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
-                rest_last = rb_hash_dup(rest_last);
-                args_set_last_hash(args, rest_last);
-                args->kw_type = KWT_SPLAT;
-            }
-        }
-    }
-
     if (arg_setup_type == arg_setup_block) {
         if (nb(args) == 1 &&
             (min_argc > 0 || iseq->body->param.opt_num > 1 || receiver_kw) &&
             !iseq->body->param.flags.ambiguous_param0) {
             args_check_block_arg0(args);
         }
-    }
-
-    if (args->kw_type == KWT_SPLAT) {
-        if (iseq->body->param.flags.ruby2_keywords) {
-            if (!args->kw_dupped) args_set_last_hash(args, rb_hash_dup(args->last_hash));
-            flag_keyword_hash = args->last_hash;
-        }
-    }
-
-    if (flag_keyword_hash && RB_TYPE_P(flag_keyword_hash, T_HASH)) {
-        ((struct RHash *)flag_keyword_hash)->basic.flags |= RHASH_PASS_AS_KEYWORDS;
     }
 
     if (args->kw_type > 0 && iseq->body->param.flags.accepts_no_kwarg) {
@@ -988,6 +970,9 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     else {
                         rb_warn_last_hash_to_keyword(ec, calling, ci, iseq, nb(args) == max_argc ? 1 : 0);
                     }
+                    if (receiver_kw & RECEIVER_HAS_KWSPLAT) {
+                        args->keyword_hash = rb_hash_dup(args->keyword_hash);
+                    }
                     break;
                   case POP_KW_SPLIT:
                     /* change behavior to pass as positional hash */
@@ -1024,6 +1009,9 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             }
             if (args->last_hash && !args->kw_dupped) {
                 args_set_last_hash(args, rb_hash_dup(args->last_hash));
+            }
+            if (args->last_hash) {
+                flag_as_kwhash(args->last_hash);
             }
             break;
           default:
@@ -1201,6 +1189,7 @@ vm_caller_setup_arg_kw(rb_control_frame_t *cfp, struct rb_calling_info *calling,
     const VALUE *const passed_keywords = ci_kw->kw_arg->keywords;
     const int kw_len = ci_kw->kw_arg->keyword_len;
     const VALUE h = rb_hash_new_with_size(kw_len);
+    flag_as_kwhash(h);
     VALUE *sp = cfp->sp;
     int i;
 
