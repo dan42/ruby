@@ -448,7 +448,7 @@ enumerator_initialize(int argc, VALUE *argv, VALUE obj)
 {
     VALUE recv, meth = sym_each;
     VALUE size = Qnil;
-    int kw_splat = 0;
+    int kw_splat = RB_NO_KEYWORDS;
 
     if (rb_block_given_p()) {
 	rb_check_arity(argc, 0, 1);

@@ -1182,7 +1182,7 @@ vm_caller_setup_arg_kw(rb_control_frame_t *cfp, struct rb_calling_info *calling,
 
     cfp->sp -= kw_len - 1;
     calling->argc -= kw_len - 1;
-    calling->kw_splat = 1;
+    calling->kw_splat = RB_PASS_KEYWORDS;
 }
 
 static VALUE

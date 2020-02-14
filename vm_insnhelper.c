@@ -1967,7 +1967,7 @@ CALLER_SETUP_ARG(struct rb_control_frame_struct *restrict cfp,
                 RB_TYPE_P((final_hash = *(cfp->sp - 1)), T_HASH) &&
                 (((struct RHash *)final_hash)->basic.flags & RHASH_PASS_AS_KEYWORDS)) {
             *(cfp->sp - 1) = rb_hash_dup(final_hash);
-            calling->kw_splat = 1;
+            calling->kw_splat = RB_PASS_KEYWORDS;
         }
     }
     if (UNLIKELY(IS_ARGS_KEYWORD(ci))) {
@@ -1996,7 +1996,7 @@ CALLER_REMOVE_EMPTY_KW_SPLAT(struct rb_control_frame_struct *restrict cfp,
         if (RHASH_EMPTY_P(cfp->sp[-1])) {
             cfp->sp--;
             calling->argc--;
-            calling->kw_splat = 0;
+            calling->kw_splat = RB_NO_KEYWORDS;
         }
     }
 }
@@ -3203,10 +3203,10 @@ vm_yield_with_cfunc(rb_execution_context_t *ec,
 
     frame_flag = VM_FRAME_MAGIC_IFUNC | VM_FRAME_FLAG_CFRAME | (me ? VM_FRAME_FLAG_BMETHOD : 0);
     switch (kw_splat) {
-      case 1:
+      case RB_PASS_KEYWORDS:
         frame_flag |= VM_FRAME_FLAG_CFRAME_KW;
         break;
-      case 2:
+      case RB_PASS_EMPTY_KEYWORDS:
         frame_flag |= VM_FRAME_FLAG_CFRAME_EMPTY_KW;
         break;
     }
@@ -3372,7 +3372,7 @@ vm_invoke_ifunc_block(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp,
     CALLER_SETUP_ARG(ec->cfp, calling, ci);
     CALLER_REMOVE_EMPTY_KW_SPLAT(ec->cfp, calling, ci);
     if (kw_splat && !calling->kw_splat) {
-        kw_splat = 2;
+        kw_splat = RB_PASS_EMPTY_KEYWORDS;
     }
     else {
         kw_splat = calling->kw_splat;

@@ -245,7 +245,7 @@ rb_adjust_argv_kw_splat(int *argc, const VALUE **argv, int *kw_splat)
             ptr[n] = rb_hash_new();
             *argc = ++n;
             *argv = ptr;
-            *kw_splat = 1;
+            *kw_splat = RB_PASS_KEYWORDS;
             return v;
         }
         else {
@@ -255,7 +255,7 @@ rb_adjust_argv_kw_splat(int *argc, const VALUE **argv, int *kw_splat)
 
     if (*kw_splat && (*argc == 0 || !RB_TYPE_P((*argv)[(*argc)-1], T_HASH))) {
         rb_warn("Keyword flag passed calling internal method, but last entry is not a hash, unsetting keyword flag");
-        *kw_splat = 0;
+        *kw_splat = RB_NO_KEYWORDS;
     }
 
     return 0;
@@ -367,11 +367,11 @@ rb_call0(rb_execution_context_t *ec,
     switch(scope) {
       case(CALL_PUBLIC_KW):
         scope = CALL_PUBLIC;
-        kw_splat = 1;
+        kw_splat = RB_PASS_KEYWORDS;
         break;
       case(CALL_FCALL_KW):
         scope = CALL_FCALL;
-        kw_splat = 1;
+        kw_splat = RB_PASS_KEYWORDS;
         break;
       default:
         break;
@@ -1476,7 +1476,7 @@ rb_block_call(VALUE obj, ID mid, int argc, const VALUE * argv,
     arg.mid = mid;
     arg.argc = argc;
     arg.argv = argv;
-    arg.kw_splat = 0;
+    arg.kw_splat = RB_NO_KEYWORDS;
     return rb_iterate(iterate_method, (VALUE)&arg, bl_proc, data2);
 }
 
@@ -1510,7 +1510,7 @@ rb_lambda_call(VALUE obj, ID mid, int argc, const VALUE *argv,
     arg.mid = mid;
     arg.argc = argc;
     arg.argv = argv;
-    arg.kw_splat = 0;
+    arg.kw_splat = RB_NO_KEYWORDS;
     block = rb_vm_ifunc_new(bl_proc, (void *)data2, min_argc, max_argc);
     return rb_iterate0(iterate_method, (VALUE)&arg, block, GET_EC());
 }
@@ -1534,7 +1534,7 @@ rb_check_block_call(VALUE obj, ID mid, int argc, const VALUE *argv,
     arg.mid = mid;
     arg.argc = argc;
     arg.argv = argv;
-    arg.kw_splat = 0;
+    arg.kw_splat = RB_NO_KEYWORDS;
     return rb_iterate(iterate_check_method, (VALUE)&arg, bl_proc, data2);
 }
 
