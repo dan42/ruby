@@ -42,6 +42,7 @@ struct args_info {
     const struct rb_call_info_kw_arg *kw_arg;
     VALUE *kw_argv;
     VALUE last_hash;
+    VALUE keyword_hash;
 };
 
 enum arg_setup_type {
@@ -352,7 +353,7 @@ enum pop_keyword_hash {
 };
 
 static enum pop_keyword_hash
-args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only_symbol)
+args_pop_keyword_hash(struct args_info *args, int check_only_symbol)
 {
     VALUE rest_hash;
 
@@ -365,17 +366,17 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
             switch (keyword_hash_symbol_other(args->last_hash)) {
               case KW_HASH_HAS_NO_KEYS:
               case KW_HASH_HAS_SYMBOL_KEY:
-                *kw_hash_ptr = args->last_hash;
+                args->keyword_hash = args->last_hash;
                 args_last_pop(args);
                 return POP_KW_OK;
               case KW_HASH_HAS_OTHER_KEY:
-                *kw_hash_ptr = Qnil;
+                args->keyword_hash = Qnil;
                 return POP_KW_NO_SYMBOL;
               case KW_HASH_HAS_BOTH_KEYS:
                 /* split the hash */
                 rest_hash = rb_hash_dup(args->last_hash);
-                *kw_hash_ptr = rb_hash_new();
-                rb_hash_stlike_foreach(rest_hash, keyword_hash_split_iter, (st_data_t)(*kw_hash_ptr));
+                args->keyword_hash = rb_hash_new();
+                rb_hash_stlike_foreach(rest_hash, keyword_hash_split_iter, (st_data_t)(args->keyword_hash));
                 args_set_last_hash(args, rest_hash);
                 return POP_KW_SPLIT;
               default:
@@ -384,13 +385,13 @@ args_pop_keyword_hash(struct args_info *args, VALUE *kw_hash_ptr, int check_only
             }
         }
         else {
-            *kw_hash_ptr = args->last_hash;
+            args->keyword_hash = args->last_hash;
             args_last_pop(args);
             return POP_KW_OK;
         }
     }
     else {
-        *kw_hash_ptr = Qnil;
+        args->keyword_hash = Qnil;
         return POP_KW_NOT_HASH;
     }
 }
@@ -418,6 +419,8 @@ args_kw_argv_to_hash(struct args_info *args)
 static inline void
 args_kw_init(struct args_info *args, unsigned int kw_flag)
 {
+    args->keyword_hash = Qnil;
+
     if (kw_flag & VM_CALL_KWARG) {
         args->kw_type = KWT_KWARG;
 
@@ -643,9 +646,9 @@ args_setup_kw_parameters(rb_execution_context_t *const ec, const rb_iseq_t *cons
 }
 
 static inline void
-args_setup_kw_rest_parameter(VALUE keyword_hash, VALUE *locals)
+args_setup_kw_rest_parameter(struct args_info *args, VALUE *locals)
 {
-    locals[0] = NIL_P(keyword_hash) ? rb_hash_new() : rb_hash_dup(keyword_hash);
+    locals[0] = NIL_P(args->keyword_hash) ? rb_hash_new() : rb_hash_dup(args->keyword_hash);
 }
 
 static inline void
@@ -819,7 +822,6 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                             (iseq->body->param.flags.has_kwrest ? RECEIVER_HAS_KWSPLAT : 0);
     int opt_pc = 0;
     struct args_info args_body, *args;
-    VALUE keyword_hash = Qnil;
     VALUE * const orig_sp = ec->cfp->sp;
     unsigned int i;
     int remove_empty_keyword_hash = 1;
@@ -954,7 +956,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 /* with some exceptions if splatted hash contains non-symbol keys */
                 int check_only_symbol = receiver_kw == RECEIVER_HAS_KWARG;
 
-                switch (args_pop_keyword_hash(args, &keyword_hash, check_only_symbol)) {
+                switch (args_pop_keyword_hash(args, check_only_symbol)) {
                   case POP_KW_NO_SYMBOL:
                     rb_warn_keyword_to_last_hash(ec, calling, ci, iseq);
                     break;
@@ -973,7 +975,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
             }
             else {
                 /* optional args allow ambiguity; use hash as positional or keyword? */
-                switch (args_pop_keyword_hash(args, &keyword_hash, 1)) {
+                switch (args_pop_keyword_hash(args, 1)) {
                   case POP_KW_OK:
                     rb_warn_last_hash_to_keyword(ec, calling, ci, iseq);
                     break;
@@ -993,7 +995,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
           case KWT_SPLAT:
             if (nb(args) > min_argc) {
                 if (max_argc != UNLIMITED_ARGUMENTS && nb(args) > max_argc) {
-                    args_pop_keyword_hash(args, &keyword_hash, 0);
+                    args_pop_keyword_hash(args, 0);
                 }
             }
             break;
@@ -1042,14 +1044,14 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	    const struct rb_call_info_kw_arg *kw_arg = args->kw_arg;
 	    args_setup_kw_parameters(ec, iseq, args->kw_argv, kw_arg->keyword_len, kw_arg->keywords, klocals);
 	}
-	else if (!NIL_P(keyword_hash)) {
-	    int kw_len = rb_long2int(RHASH_SIZE(keyword_hash));
+	else if (!NIL_P(args->keyword_hash)) {
+	    int kw_len = rb_long2int(RHASH_SIZE(args->keyword_hash));
 	    struct fill_values_arg arg;
 	    /* copy kw_argv */
 	    arg.keys = args->kw_argv = ALLOCA_N(VALUE, kw_len * 2);
 	    arg.vals = arg.keys + kw_len;
 	    arg.argc = 0;
-	    rb_hash_foreach(keyword_hash, fill_keys_values, (VALUE)&arg);
+	    rb_hash_foreach(args->keyword_hash, fill_keys_values, (VALUE)&arg);
 	    VM_ASSERT(arg.argc == kw_len);
 	    args_setup_kw_parameters(ec, iseq, arg.vals, kw_len, arg.keys, klocals);
 	}
@@ -1058,10 +1060,10 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
 	}
     }
     else if (iseq->body->param.flags.has_kwrest) {
-	args_setup_kw_rest_parameter(keyword_hash, locals + iseq->body->param.keyword->rest_start);
+        args_setup_kw_rest_parameter(args, locals + iseq->body->param.keyword->rest_start);
     }
-    else if (!NIL_P(keyword_hash) && RHASH_SIZE(keyword_hash) > 0 && arg_setup_type == arg_setup_method) {
-	argument_kw_error(ec, iseq, "unknown", rb_hash_keys(keyword_hash));
+    else if (!NIL_P(args->keyword_hash) && RHASH_SIZE(args->keyword_hash) > 0 && arg_setup_type == arg_setup_method) {
+        argument_kw_error(ec, iseq, "unknown", rb_hash_keys(args->keyword_hash));
     }
 
     if (iseq->body->param.flags.has_block) {
