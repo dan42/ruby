@@ -43,6 +43,7 @@ struct args_info {
     VALUE *kw_argv;
     VALUE last_hash;
     VALUE keyword_hash;
+    int kw_dupped;
 };
 
 enum arg_setup_type {
@@ -134,6 +135,7 @@ args_set_last_hash(struct args_info *args, VALUE h)
         RARRAY_ASET(args->rest, len - 1, h);
     }
     args->last_hash = h;
+    args->kw_dupped = TRUE;
 }
 
 static inline void
@@ -420,6 +422,7 @@ static inline void
 args_kw_init(struct args_info *args, unsigned int kw_flag)
 {
     args->keyword_hash = Qnil;
+    args->kw_dupped = FALSE;
 
     if (kw_flag & VM_CALL_KWARG) {
         args->kw_type = KWT_KWARG;
@@ -445,6 +448,7 @@ args_kw_init(struct args_info *args, unsigned int kw_flag)
         if (kw_flag & VM_CALL_KW_SPLAT) {
             args->kw_type = KWT_SPLAT;
             VM_ASSERT(args->last_hash);
+            args->kw_dupped = !OBJ_FROZEN(args->last_hash);
         }
     }
 }
@@ -648,7 +652,7 @@ args_setup_kw_parameters(rb_execution_context_t *const ec, const rb_iseq_t *cons
 static inline void
 args_setup_kw_rest_parameter(struct args_info *args, VALUE *locals)
 {
-    locals[0] = NIL_P(args->keyword_hash) ? rb_hash_new() : rb_hash_dup(args->keyword_hash);
+    locals[0] = NIL_P(args->keyword_hash) ? rb_hash_new() : args->kw_dupped ? args->keyword_hash : rb_hash_dup(args->keyword_hash);
 }
 
 static inline void
@@ -904,6 +908,7 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                     args->kw_type = KWT_NONE;
                 }
                 else {
+                    if (!args->kw_dupped) args_set_last_hash(args, rb_hash_dup(args->last_hash));
                     flag_keyword_hash = args->last_hash;
                 }
             }
@@ -997,6 +1002,9 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
                 if (max_argc != UNLIMITED_ARGUMENTS && nb(args) > max_argc) {
                     args_pop_keyword_hash(args, 0);
                 }
+            }
+            if (args->last_hash && !args->kw_dupped) {
+                args_set_last_hash(args, rb_hash_dup(args->last_hash));
             }
             break;
           default:
