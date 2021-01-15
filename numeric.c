@@ -3476,9 +3476,20 @@ rb_fix2str(VALUE x, int base)
     else {
 	u = val;
     }
-    do {
-	*--b = ruby_digitmap[(int)(u % base)];
-    } while (u /= base);
+    if ((base & (base-1)) == 0){
+        /* for powers of 2, use bitshift arithmetic for 2x speedup */ 
+        int mask = base - 1;
+        int shift = 0;
+        while (base >>= 1) shift++;
+        do {
+            *--b = ruby_digitmap[(int)(u & mask)];
+        } while (u >>= shift);
+    }
+    else{
+        do {
+            *--b = ruby_digitmap[(int)(u % base)];
+        } while (u /= base);
+    }
     if (neg) {
 	*--b = '-';
     }
